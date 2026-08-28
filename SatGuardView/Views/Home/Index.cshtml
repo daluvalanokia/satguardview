@@ -1,0 +1,140 @@
+@using SatGuardView.Models
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EO Imagery Explorer - SatGuardView</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header__left">
+            <div class="app-header__logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" /><path d="M2 12h20" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                EO Imagery Explorer
+            </div>
+            <div class="app-header__tab" id="liveViewTab" onclick="toggleLiveView()">
+                <div class="live-dot"></div>
+                Live View
+            </div>
+        </div>
+        <div class="app-header__right">
+            <span class="app-header__title">SatGuardView</span>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <aside class="sidebar-left" id="sidebarLeft">
+            <div class="sidebar-left__header">
+                <div class="sidebar-left__title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18" /><circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <h2>EO Imagery Explorer</h2>
+                </div>
+                <button class="sidebar-left__close" onclick="toggleLeftSidebar()">&times;</button>
+            </div>
+            <div class="sidebar-left__subtitle">Search open satellite data catalogs</div>
+
+            <div class="sidebar-left__section">
+                <div class="sidebar-left__section-title">Location</div>
+                <div class="form-group">
+                    <label class="form-label" for="countrySelect">Country / Region</label>
+                    <select class="form-select" id="countrySelect" onchange="onCountrySelected()">
+                        <option value="">Select a country...</option>
+                        @if (ViewBag.Countries != null)
+                        {
+                            foreach (var country in ViewBag.Countries)
+                            {
+                                <option value="@country.Code" data-bbox="@string.Join(",", country.Bbox)">@country.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="sidebar-left__section">
+                <div class="sidebar-left__section-title">Filters</div>
+                <div class="form-group">
+                    <label class="form-label" for="sourceSelect">Satellite Source</label>
+                    <select class="form-select" id="sourceSelect">
+                        @if (ViewBag.SatelliteSources != null)
+                        {
+                            foreach (var source in ViewBag.SatelliteSources)
+                            {
+                                <option value="@source.Id">@source.DisplayLabel</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="date-range">
+                    <div class="form-group" style="flex:1">
+                        <label class="form-label" for="startDate">Start Date</label>
+                        <input type="text" class="form-input" id="startDate" placeholder="MM/DD/YYYY" />
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label class="form-label" for="endDate">End Date</label>
+                        <input type="text" class="form-input" id="endDate" placeholder="MM/DD/YYYY" />
+                    </div>
+                </div>
+                <div class="form-group cloud-slider-group">
+                    <div class="cloud-slider-header">
+                        <label class="form-label" style="margin-bottom:0">Max Cloud Cover</label>
+                        <span class="cloud-slider-value" id="cloudValue">20%</span>
+                    </div>
+                    <input type="range" class="cloud-slider" id="cloudSlider" min="0" max="100" value="20" oninput="onCloudSliderChanged(this.value)" />
+                </div>
+            </div>
+
+            <div class="search-btn-container">
+                <button class="search-btn" id="searchBtn" disabled onclick="searchImagery()">Search Imagery</button>
+                <div class="search-btn-hint" id="searchHint">Select a location to start</div>
+            </div>
+        </aside>
+
+        <button class="toggle-left" id="toggleLeft" onclick="toggleLeftSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+        </button>
+        <button class="toggle-right" id="toggleRight" onclick="toggleRightSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
+        </button>
+
+        <div class="map-container">
+            <div class="map-draw-hint" id="drawHint">Click on the map to set search area</div>
+            <div class="layer-switcher">
+                <button class="layer-switcher__btn active" id="layerStreet" onclick="switchLayer('street')">Street</button>
+                <button class="layer-switcher__btn" id="layerSatellite" onclick="switchLayer('satellite')">Live Satellite</button>
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <aside class="sidebar-right" id="sidebarRight">
+            <div class="sidebar-right__header">
+                <div class="sidebar-right__title">Search Results</div>
+                <button class="sidebar-right__close" onclick="toggleRightSidebar()">&times;</button>
+            </div>
+            <div class="sidebar-right__body" id="resultsBody">
+                <div class="results-empty">
+                    <svg class="results-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /><line x1="12" y1="2" x2="12" y2="0" />
+                    </svg>
+                    <div class="results-empty__text">Select a location and search to browse available imagery</div>
+                </div>
+            </div>
+            <div class="sidebar-right__footer" id="resultsFooter"></div>
+        </aside>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>
