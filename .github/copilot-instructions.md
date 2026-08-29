@@ -1,0 +1,4 @@
+- @azure Rule - guard family with satellite east view
+- @azure Rule - guard family with satellite west view
+- @azure Rule - guard family with satellite north view
+- @azure Rule - guard family with satellite south view
