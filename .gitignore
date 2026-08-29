@@ -1,0 +1,70 @@
+# ============================================================
+# SatGuardView — .gitignore
+# ============================================================
+
+# ----- Visual Studio IDE files -----
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# ----- Build output -----
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rtifacts/
+build/
+bld/
+
+# ----- .NET build artifacts -----
+*.dll
+*.exe
+*.pdb
+*.cache
+*.dll.config
+*.exe.config
+
+# ----- NuGet -----
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!build/
+!**/packages/repositories.config
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ----- Visual Studio Code -----
+.vscode/
+*.code-workspace
+
+# ----- JetBrains Rider -----
+.idea/
+
+# ----- OS files -----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- ASP.NET / Web -----
+*.publishsettings
+PublishScripts/
+*.publishproj
+*.pubxml
+
+# ----- Temp files -----
+*.tmp
+*.temp
+*.bak
