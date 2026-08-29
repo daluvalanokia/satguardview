@@ -4,6 +4,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient<IStacSearchService, StacSearchService>();
+builder.Services.AddHttpClient("Geocoding", client =>
+{
+    client.DefaultRequestHeaders.Add("User-Agent", "SatGuardView/1.0");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 builder.Services.AddSingleton<IGeoDataService, GeoDataService>();
 builder.Services.Configure<StacApiSettings>(builder.Configuration.GetSection("StacApi"));
 

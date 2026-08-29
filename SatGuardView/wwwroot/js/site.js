@@ -1,42 +1,215 @@
 // ============================================================
-// EO Imagery Explorer - SatGuardView
+// SatGuardView — EO Imagery Explorer + Live View
 // ============================================================
 
 var map = null;
+var currentTab = 'explorer';
 var currentLayer = 'street';
 var streetLayer = null;
 var satelliteLayer = null;
+var gibsLayer = null;
 var currentRectangle = null;
 var searchMarkers = [];
 var currentBbox = null;
 var searchResults = [];
+var liveShieldMarker = null;
 var liveViewActive = false;
 
-var streetTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
-var satelliteTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-var attribution = 'Tiles &copy; Esri, Reference &copy; Esri';
-
-// Light yellow border color for country/region rectangles
-var BORDER_COLOR = '#FFD700'; // light yellow / gold
+// Light yellow border color (#FFD700) per user instruction
+var BORDER_COLOR = '#FFD700';
 var BORDER_FILL_COLOR = '#FFD700';
 var BORDER_FILL_OPACITY = 0.08;
+
+// Tile URLs
+var streetTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+var satelliteTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+var gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{gibsDate}/250m/{z}/{y}/{x}.jpg';
+var esriAttribution = 'Tiles &copy; Esri, Reference &copy; Esri';
+var gibsAttribution = 'Imagery &copy; NASA GIBS, Reference &copy; Esri';
+
+// ===== Date Helpers =====
+function getGibsDate() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+}
+
+function getTimestampDisplay() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0') + ' ' +
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+}
+
+function formatDateForApi(dateStr) {
+    if (!dateStr) return null;
+    // Handle YYYY-MM-DD (from <input type="date">)
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
+    // Handle MM/DD/YYYY
+    var parts = dateStr.split('/');
+    if (parts.length === 3) return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
+    return dateStr;
+}
+
+function setDefaultDateRange() {
+    var end = new Date();
+    var start = new Date();
+    start.setDate(end.getDate() - 90);
+    document.getElementById('startDate').value =
+        start.getFullYear() + '-' + String(start.getMonth() + 1).padStart(2, '0') + '-' + String(start.getDate()).padStart(2, '0');
+    document.getElementById('endDate').value =
+        end.getFullYear() + '-' + String(end.getMonth() + 1).padStart(2, '0') + '-' + String(end.getDate()).padStart(2, '0');
+}
 
 // ===== Initialize Map =====
 function initMap() {
     map = L.map('map', {
-        center: [20, 0], zoom: 2, minZoom: 2, maxZoom: 18,
-        zoomControl: true, worldCopyJump: true, attributionControl: true
+        center: [20, 0],
+        zoom: 2,
+        minZoom: 2,
+        maxZoom: 18,
+        zoomControl: true,
+        worldCopyJump: true,
+        attributionControl: true
     });
-    streetLayer = L.tileLayer(streetTilesUrl, { attribution: attribution, maxZoom: 18 }).addTo(map);
-    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: attribution, maxZoom: 18 });
+
+    streetLayer = L.tileLayer(streetTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
+    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
+    gibsLayer = L.tileLayer(gibsUrl, {
+        gibsDate: getGibsDate(),
+        attribution: gibsAttribution,
+        maxZoom: 9,
+        tileSize: 256
+    });
+
+    streetLayer.addTo(map);
     map.zoomControl.setPosition('bottomleft');
     L.control.attribution({ position: 'bottomright', prefix: 'Leaflet' }).addTo(map);
     map.on('click', onMapClick);
+
+    // Update timestamp
+    updateLiveTimestamp();
 }
 
-// ===== Map Click =====
+// ===== Tab Switching =====
+function switchTab(tab) {
+    if (tab === currentTab) return;
+    currentTab = tab;
+
+    var tabExplorer = document.getElementById('tabExplorer');
+    var tabLiveView = document.getElementById('tabLiveView');
+    var sidebarExplorer = document.getElementById('sidebarExplorer');
+    var sidebarLiveView = document.getElementById('sidebarLiveView');
+    var layerSwitcher = document.getElementById('layerSwitcher');
+    var timestampBadge = document.getElementById('liveTimestampBadge');
+    var sidebarRight = document.getElementById('sidebarRight');
+
+    if (tab === 'explorer') {
+        tabExplorer.classList.add('active');
+        tabLiveView.classList.remove('active');
+        sidebarExplorer.classList.remove('hidden');
+        sidebarLiveView.classList.add('hidden');
+        layerSwitcher.classList.remove('hidden');
+        timestampBadge.classList.add('hidden');
+        sidebarRight.classList.remove('hidden');
+        liveViewActive = false;
+
+        // Switch back to street/satellite
+        if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
+        if (currentLayer === 'street') {
+            if (!map.hasLayer(streetLayer)) streetLayer.addTo(map);
+            if (map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+        } else {
+            if (!map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
+            if (map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+        }
+        // Remove shield marker
+        if (liveShieldMarker) {
+            map.removeLayer(liveShieldMarker);
+            liveShieldMarker = null;
+        }
+        // Restore current rectangle if exists
+        if (currentBbox) drawRectangleOnMap(currentBbox);
+    } else {
+        tabExplorer.classList.remove('active');
+        tabLiveView.classList.add('active');
+        sidebarExplorer.classList.add('hidden');
+        sidebarLiveView.classList.remove('hidden');
+        layerSwitcher.classList.add('hidden');
+        timestampBadge.classList.remove('hidden');
+        sidebarRight.classList.add('hidden');
+        liveViewActive = true;
+
+        // Switch to NASA GIBS MODIS Terra
+        if (map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+        if (map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+        // Remove search rectangle
+        if (currentRectangle) {
+            map.removeLayer(currentRectangle);
+            currentRectangle = null;
+        }
+        // Remove search markers
+        clearSearchMarkers();
+        // Add GIBS layer
+        if (!map.hasLayer(gibsLayer)) {
+            gibsLayer.options.gibsDate = getGibsDate();
+            gibsLayer.addTo(map);
+        }
+        // Update timestamp
+        updateLiveTimestamp();
+    }
+}
+
+// ===== Live View Timestamp Badge =====
+function updateLiveTimestamp() {
+    var dateStr = getGibsDate();
+    var badge = document.getElementById('liveTimestampDate');
+    if (badge) badge.textContent = dateStr;
+
+    var refresh = document.getElementById('liveViewLastRefresh');
+    if (refresh) refresh.textContent = getTimestampDisplay();
+}
+
+// ===== Refresh Live View (re-adds GIBS layer with today's date) =====
+function refreshLiveView() {
+    if (!liveViewActive) return;
+    var newDate = getGibsDate();
+    if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
+    gibsLayer = L.tileLayer(gibsUrl, {
+        gibsDate: newDate,
+        attribution: gibsAttribution,
+        maxZoom: 9,
+        tileSize: 256
+    });
+    gibsLayer.addTo(map);
+    updateLiveTimestamp();
+    showToast('Live view refreshed — ' + newDate, 'success');
+}
+
+// ===== Layer Switching (EO Explorer only) =====
+function switchLayer(layer) {
+    if (layer === currentLayer || liveViewActive) return;
+    currentLayer = layer;
+    if (layer === 'street') {
+        map.removeLayer(satelliteLayer);
+        if (!map.hasLayer(streetLayer)) streetLayer.addTo(map);
+        document.getElementById('layerStreet').classList.add('active');
+        document.getElementById('layerSatellite').classList.remove('active');
+    } else {
+        map.removeLayer(streetLayer);
+        if (!map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
+        document.getElementById('layerSatellite').classList.add('active');
+        document.getElementById('layerStreet').classList.remove('active');
+    }
+}
+
+// ===== Map Click (EO Explorer — draw bbox) =====
 function onMapClick(e) {
-    if (currentRectangle) return;
+    if (liveViewActive) return;
+    if (currentRectangle) return; // already have a selection
     var lat = e.latlng.lat, lng = e.latlng.lng, delta = 0.5;
     currentBbox = [Math.max(-180, lng - delta), Math.max(-90, lat - delta), Math.min(180, lng + delta), Math.min(90, lat + delta)];
     drawRectangleOnMap(currentBbox);
@@ -53,51 +226,166 @@ function drawRectangleOnMap(bbox) {
     }).addTo(map);
 }
 
-// ===== Live View Tab (toggles satellite/street layer) =====
-function toggleLiveView() {
-    var tab = document.getElementById('liveViewTab');
-    liveViewActive = !liveViewActive;
-    if (liveViewActive) {
-        tab.classList.add('active');
-        switchLayer('satellite');
-    } else {
-        tab.classList.remove('active');
-        switchLayer('street');
-    }
-}
-
-// ===== Layer Switching =====
-function switchLayer(layer) {
-    if (layer === currentLayer) return;
-    if (layer === 'street') {
-        map.removeLayer(satelliteLayer); map.addLayer(streetLayer);
-        document.getElementById('layerStreet').classList.add('active');
-        document.getElementById('layerSatellite').classList.remove('active');
-    } else {
-        map.removeLayer(streetLayer); map.addLayer(satelliteLayer);
-        document.getElementById('layerSatellite').classList.add('active');
-        document.getElementById('layerStreet').classList.remove('active');
-    }
-    currentLayer = layer;
-}
-
-// ===== Country Selection =====
+// ===== Country Selection (EO Explorer) =====
 function onCountrySelected() {
+    if (liveViewActive) return;
     var select = document.getElementById('countrySelect');
     var option = select.options[select.selectedIndex];
+    var geoGroup = document.getElementById('geographyTypeGroup');
+
     if (!option || !option.value) {
         currentBbox = null;
         if (currentRectangle) { map.removeLayer(currentRectangle); currentRectangle = null; }
-        disableSearch(); return;
+        if (geoGroup) geoGroup.style.display = 'none';
+        disableSearch();
+        return;
     }
+
     var bboxStr = option.getAttribute('data-bbox');
     if (!bboxStr) return;
     var bbox = bboxStr.split(',').map(parseFloat);
     currentBbox = bbox;
-    // Draw with light yellow border
+
     drawRectangleOnMap(bbox);
     map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], { padding: [40, 40] });
+
+    // Show Geography Type dropdown
+    if (geoGroup) {
+        geoGroup.style.display = 'block';
+        // Reset selection
+        document.getElementById('geographyTypeSelect').value = '';
+    }
+
     enableSearch();
+}
+
+// ===== Geography Type Selection =====
+function onGeographyTypeSelected() {
+    var geoType = document.getElementById('geographyTypeSelect').value;
+    // Adjust rectangle style based on geography type
+    if (currentRectangle && currentBbox) {
+        if (geoType === 'administrative') {
+            currentRectangle.setStyle({
+                color: BORDER_COLOR,
+                weight: 2,
+                dashArray: null,
+                fillColor: BORDER_FILL_COLOR,
+                fillOpacity: BORDER_FILL_OPACITY
+            });
+        } else if (geoType === 'physical') {
+            currentRectangle.setStyle({
+                color: BORDER_COLOR,
+                weight: 2,
+                dashArray: '8 4',
+                fillColor: BORDER_FILL_COLOR,
+                fillOpacity: 0.03
+            });
+        }
+    }
+}
+
+// ===== Country Selection (Live View) =====
+function onLiveCountrySelected() {
+    var select = document.getElementById('liveCountrySelect');
+    var option = select.options[select.selectedIndex];
+    var cityInput = document.getElementById('liveCityInput');
+    var cityBtn = document.getElementById('liveCitySearchBtn');
+
+    if (!option || !option.value) {
+        cityInput.disabled = true;
+        cityBtn.disabled = true;
+        cityInput.placeholder = 'Select a country first';
+        cityInput.value = '';
+        return;
+    }
+
+    cityInput.disabled = false;
+    cityBtn.disabled = false;
+    cityInput.placeholder = 'Type a city name...';
+
+    // Zoom to country
+    var bboxStr = option.getAttribute('data-bbox');
+    if (bboxStr) {
+        var bbox = bboxStr.split(',').map(parseFloat);
+        map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], { padding: [40, 40] });
+    }
+
+    // Clear previous shield marker
+    if (liveShieldMarker) {
+        map.removeLayer(liveShieldMarker);
+        liveShieldMarker = null;
+    }
+}
+
+// ===== City Search (Live View — geocoding via Nominatim) =====
+async function searchLiveCity() {
+    var cityInput = document.getElementById('liveCityInput');
+    var countrySelect = document.getElementById('liveCountrySelect');
+    var city = cityInput.value.trim();
+    var country = countrySelect.options[countrySelect.selectedIndex].text;
+
+    if (!city) {
+        showToast('Enter a city name', 'error');
+        return;
+    }
+
+    var query = city + ', ' + country;
+    cityInput.disabled = true;
+    cityBtn = document.getElementById('liveCitySearchBtn');
+    cityBtn.disabled = true;
+    cityBtn.innerHTML = '<div class="mini-spinner"></div>';
+
+    try {
+        var response = await fetch('/api/geocode?q=' + encodeURIComponent(query));
+        if (!response.ok) throw new Error('Geocoding failed');
+        var results = await response.json();
+
+        if (!results || results.length === 0) {
+            // Try without country prefix
+            response = await fetch('/api/geocode?q=' + encodeURIComponent(city));
+            results = await response.json();
+        }
+
+        if (!results || results.length === 0) {
+            showToast('City not found: ' + city, 'error');
+            return;
+        }
+
+        var best = results[0];
+        var lat = parseFloat(best.lat);
+        var lng = parseFloat(best.lon);
+
+        // Drop shield marker
+        if (liveShieldMarker) map.removeLayer(liveShieldMarker);
+
+        var shieldIcon = L.divIcon({
+            className: 'shield-marker',
+            html: '<svg viewBox="0 0 24 24" width="36" height="36" xmlns="http://www.w3.org/2000/svg">' +
+                '<path d="M12 2L4 6v6c0 5.5 3.84 10.74 8 12 4.16-1.26 8-6.5 8-12V6l-8-4z" ' +
+                'fill="#2563eb" stroke="#fff" stroke-width="2"/>' +
+                '<text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7" font-weight="bold" font-family="sans-serif">LIVE</text></svg>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 36]
+        });
+
+        liveShieldMarker = L.marker([lat, lng], { icon: shieldIcon }).addTo(map);
+        liveShieldMarker.bindPopup(
+            '<div style="font-size:13px"><strong>' + (best.display_name || city) + '</strong><br>' +
+            'Lat: ' + lat.toFixed(4) + ', Lng: ' + lng.toFixed(4) + '<br>' +
+            '<span style="color:#2563eb">Live MODIS Terra imagery</span></div>'
+        );
+
+        // Zoom to city
+        map.setView([lat, lng], 8, { animate: true });
+        showToast('Located: ' + city, 'success');
+
+    } catch (err) {
+        showToast('Search error: ' + err.message, 'error');
+    } finally {
+        cityInput.disabled = false;
+        cityBtn.disabled = false;
+        cityBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+    }
 }
 
 // ===== Cloud Slider =====
@@ -107,7 +395,8 @@ function onCloudSliderChanged(value) {
 
 // ===== Search Enable/Disable =====
 function enableSearch() {
-    document.getElementById('searchBtn').disabled = false;
+    var btn = document.getElementById('searchBtn');
+    btn.disabled = false;
     document.getElementById('searchHint').textContent = 'Ready to search';
 }
 function disableSearch() {
@@ -118,6 +407,7 @@ function disableSearch() {
 // ===== Search Imagery =====
 async function searchImagery() {
     if (!currentBbox) { showToast('Select a location first', 'error'); return; }
+
     var payload = {
         bbox: currentBbox,
         satelliteSource: document.getElementById('sourceSelect').value,
@@ -125,10 +415,13 @@ async function searchImagery() {
         endDate: formatDateForApi(document.getElementById('endDate').value),
         maxCloudCover: parseInt(document.getElementById('cloudSlider').value)
     };
+
     showLoading();
-    document.getElementById('searchBtn').disabled = true;
-    document.getElementById('searchBtn').textContent = 'Searching...';
+    var btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="mini-spinner" style="margin:0 auto"></div> Searching...';
     clearSearchMarkers();
+
     try {
         var response = await fetch('/api/search', {
             method: 'POST',
@@ -136,40 +429,46 @@ async function searchImagery() {
             body: JSON.stringify(payload)
         });
         var data = await response.json();
+
         if (!response.ok || data.error) {
             showToast(data.error || 'Search failed', 'error');
             showEmptyState();
             return;
         }
-        // Store all results from API (no server-side cloud filter — matches Base44 behavior)
+
         searchResults = data.items || [];
+
         // Client-side cloud cover filtering
         var maxCloud = parseInt(document.getElementById('cloudSlider').value);
-        var filteredResults = searchResults.filter(function(item) {
-            if (item.cloudCover == null) return true; // keep items without cloud cover data (e.g., Sentinel-1, DEM)
+        var filtered = searchResults.filter(function(item) {
+            if (item.cloudCover == null) return true;
             return item.cloudCover <= maxCloud;
         });
-        displayResults(filteredResults, data.total || searchResults.length);
-        addResultMarkers(filteredResults);
-        showToast('Found ' + filteredResults.length + ' imagery items', 'success');
+
+        displayResults(filtered, data.total || searchResults.length);
+        addResultMarkers(filtered);
+        showToast('Found ' + filtered.length + ' imagery items', 'success');
+
     } catch (err) {
         showToast('Network error: ' + err.message, 'error');
         showEmptyState();
     } finally {
-        document.getElementById('searchBtn').disabled = false;
-        document.getElementById('searchBtn').textContent = 'Search Imagery';
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-right:6px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search Imagery';
     }
 }
 
-// ===== Display Results in Search Results Panel =====
+// ===== Display Results =====
 function displayResults(items, totalCount) {
     var body = document.getElementById('resultsBody');
     var footer = document.getElementById('resultsFooter');
+
     if (!items || items.length === 0) {
         body.innerHTML = '<div class="results-empty"><svg class="results-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><div class="results-empty__text">No imagery found matching your filters. Try adjusting cloud cover or date range.</div></div>';
         footer.textContent = '';
         return;
     }
+
     var html = '';
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
@@ -202,7 +501,7 @@ function displayResults(items, totalCount) {
     footer.textContent = items.length + ' of ' + totalCount + ' items shown';
 }
 
-// ===== Map Markers =====
+// ===== Result Markers =====
 function addResultMarkers(items) {
     clearSearchMarkers();
     for (var i = 0; i < items.length; i++) {
@@ -215,75 +514,77 @@ function addResultMarkers(items) {
         searchMarkers.push(rect);
     }
 }
+
 function clearSearchMarkers() {
     for (var i = 0; i < searchMarkers.length; i++) map.removeLayer(searchMarkers[i]);
     searchMarkers = [];
 }
+
 function zoomToItem(index) {
-    if (!searchResults[index]) return;
-    var item = searchResults[index];
-    if (item.bbox && item.bbox.length >= 4)
-        map.fitBounds([[item.bbox[1], item.bbox[0]], [item.bbox[3], item.bbox[2]]], { padding: [50, 50] });
+    var filtered = searchResults;
+    if (filtered[index] && filtered[index].bbox) {
+        var b = filtered[index].bbox;
+        map.fitBounds([[b[1], b[0]], [b[3], b[2]]], { padding: [40, 40] });
+    }
 }
 
-// ===== States =====
+// ===== Loading / Empty States =====
 function showLoading() {
-    document.getElementById('resultsBody').innerHTML = '<div class="results-loading"><div class="results-loading__spinner"></div><div class="results-loading__text">Searching satellite catalogs...</div></div>';
+    document.getElementById('resultsBody').innerHTML =
+        '<div class="results-loading"><div class="results-loading__spinner"></div><div class="results-loading__text">Searching satellite imagery...</div></div>';
     document.getElementById('resultsFooter').textContent = '';
 }
+
 function showEmptyState() {
-    document.getElementById('resultsBody').innerHTML = '<div class="results-empty"><svg class="results-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><div class="results-empty__text">Select a location and search to browse available imagery</div></div>';
+    document.getElementById('resultsBody').innerHTML =
+        '<div class="results-empty"><svg class="results-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><div class="results-empty__text">No imagery found. Try adjusting your search.</div></div>';
     document.getElementById('resultsFooter').textContent = '';
 }
 
 // ===== Sidebar Toggles =====
 function toggleLeftSidebar() {
-    document.getElementById('sidebarLeft').classList.toggle('hidden');
-    document.getElementById('toggleLeft').classList.toggle('visible');
-    setTimeout(function() { if (map) map.invalidateSize(); }, 300);
+    var sidebar = currentTab === 'explorer'
+        ? document.getElementById('sidebarExplorer')
+        : document.getElementById('sidebarLiveView');
+    sidebar.classList.toggle('hidden');
+    var toggle = document.getElementById('toggleLeft');
+    if (sidebar.classList.contains('hidden')) {
+        toggle.classList.add('visible');
+    } else {
+        toggle.classList.remove('visible');
+    }
+    setTimeout(function() { map.invalidateSize(); }, 300);
 }
+
 function toggleRightSidebar() {
-    document.getElementById('sidebarRight').classList.toggle('hidden');
-    document.getElementById('toggleRight').classList.toggle('visible');
-    setTimeout(function() { if (map) map.invalidateSize(); }, 300);
+    var sidebar = document.getElementById('sidebarRight');
+    sidebar.classList.toggle('hidden');
+    setTimeout(function() { map.invalidateSize(); }, 300);
 }
 
 // ===== Toast =====
-function showToast(message, type) {
+function showToast(msg, type) {
     var toast = document.getElementById('toast');
-    toast.textContent = message;
+    toast.textContent = msg;
     toast.className = 'toast visible' + (type ? ' ' + type : '');
-    setTimeout(function() { toast.classList.remove('visible'); }, 3000);
-}
-
-// ===== Date Formatting =====
-function formatDateForApi(dateStr) {
-    if (!dateStr) return '';
-    var parts = dateStr.split('/');
-    if (parts.length === 3) return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    var d = new Date(dateStr);
-    if (!isNaN(d)) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    return dateStr;
-}
-
-// ===== Default Dates (3 months ago → today) =====
-function setDefaultDates() {
-    var today = new Date();
-    var threeMonthsAgo = new Date(today);
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    document.getElementById('startDate').value =
-        String(threeMonthsAgo.getMonth() + 1).padStart(2, '0') + '/' +
-        String(threeMonthsAgo.getDate()).padStart(2, '0') + '/' +
-        threeMonthsAgo.getFullYear();
-    document.getElementById('endDate').value =
-        String(today.getMonth() + 1).padStart(2, '0') + '/' +
-        String(today.getDate()).padStart(2, '0') + '/' +
-        today.getFullYear();
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(function() {
+        toast.className = 'toast' + (type ? ' ' + type : '');
+    }, 3000);
 }
 
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
-    setDefaultDates();
+    setDefaultDateRange();
+
+    // Close toggle button for left sidebar
+    document.getElementById('toggleLeft').addEventListener('click', function() {
+        var sidebar = currentTab === 'explorer'
+            ? document.getElementById('sidebarExplorer')
+            : document.getElementById('sidebarLiveView');
+        sidebar.classList.remove('hidden');
+        this.classList.remove('visible');
+        setTimeout(function() { map.invalidateSize(); }, 300);
+    });
 });

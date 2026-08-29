@@ -29,8 +29,6 @@ public class StacSearchService : IStacSearchService
         _logger = logger;
 
         // FIX: Must use trailing slash in BaseAddress to avoid .NET URI resolution bug.
-        // Without the trailing slash, PostAsJsonAsync("search", ...) resolves to
-        // https://earth-search.aws.element84.com/search (dropping /v1) → 403 Forbidden.
         var baseUrl = _settings.BaseUrl ?? "https://earth-search.aws.element84.com/v1";
         if (!baseUrl.EndsWith("/")) baseUrl += "/";
 
@@ -50,14 +48,10 @@ public class StacSearchService : IStacSearchService
             return response;
         }
 
-        // Default satellite source if not specified
         var collection = string.IsNullOrEmpty(request.SatelliteSource)
             ? "sentinel-2-l2a"
             : request.SatelliteSource;
 
-        // Build the STAC search payload — matches the Base44 backend function.
-        // NOTE: The Base44 function does NOT send the cloud cover filter to the STAC API.
-        // Cloud cover filtering is done client-side in the frontend.
         var searchPayload = new StacSearchPayload
         {
             Collections = new List<string> { collection },
@@ -65,21 +59,27 @@ public class StacSearchService : IStacSearchService
             Limit = request.Limit ?? _settings.DefaultLimit
         };
 
-        // Add datetime range if provided
         var dateRange = request.GetDateTimeRange();
         if (!string.IsNullOrEmpty(dateRange))
         {
             searchPayload.Datetime = dateRange;
         }
 
+        // Add sorting if requested (used by Live View to get most recent imagery)
+        if (!string.IsNullOrEmpty(request.SortBy))
+        {
+            searchPayload.Sort = new List<StacSort>
+            {
+                new() { Field = request.SortBy, Direction = "desc" }
+            };
+        }
+
         try
         {
             _logger.LogInformation(
-                "STAC search: collection={Collection}, bbox={Bbox}, datetime={Datetime}",
-                collection, string.Join(",", request.Bbox!), dateRange ?? "none");
+                "STAC search: collection={Collection}, bbox={Bbox}, datetime={Datetime}, sort={Sort}",
+                collection, string.Join(",", request.Bbox!), dateRange ?? "none", request.SortBy ?? "none");
 
-            // Use relative path "search" (no leading slash) — resolves correctly
-            // against BaseAddress with trailing slash.
             var apiResponse = await _httpClient.PostAsJsonAsync("search", searchPayload, JsonOpts);
 
             if (!apiResponse.IsSuccessStatusCode)
@@ -99,7 +99,6 @@ public class StacSearchService : IStacSearchService
                 return response;
             }
 
-            // Convert STAC features to SatelliteImageryItem
             response.Items = stacResponse.Features.Select(MapFeatureToItem).ToList();
             response.Total = stacResponse.NumberMatched > 0
                 ? stacResponse.NumberMatched
@@ -135,7 +134,6 @@ public class StacSearchService : IStacSearchService
         var props = feature.Properties ?? new StacProperties();
         var assets = feature.Assets ?? new Dictionary<string, StacAsset>();
 
-        // Get thumbnail URL from the "thumbnail" asset
         string? thumbnailUrl = null;
         if (assets.TryGetValue("thumbnail", out var thumbAsset))
         {
@@ -146,10 +144,8 @@ public class StacSearchService : IStacSearchService
             thumbnailUrl = ConstructSentinel2Thumbnail(feature.Id);
         }
 
-        // visualUrl = same as thumbnail (matching Base44 backend function behavior)
         string? visualUrl = thumbnailUrl;
 
-        // tiffUrl from the "visual" asset if available
         string? tiffUrl = null;
         if (assets.TryGetValue("visual", out var visualAsset))
         {
@@ -213,6 +209,13 @@ internal class StacSearchPayload
     [JsonPropertyName("bbox")] public double[] Bbox { get; set; } = Array.Empty<double>();
     [JsonPropertyName("datetime")] public string? Datetime { get; set; }
     [JsonPropertyName("limit")] public int Limit { get; set; } = 50;
+    [JsonPropertyName("sort")] public List<StacSort>? Sort { get; set; }
+}
+
+internal class StacSort
+{
+    [JsonPropertyName("field")] public string Field { get; set; } = "datetime";
+    [JsonPropertyName("direction")] public string Direction { get; set; } = "desc";
 }
 
 internal class StacResponse

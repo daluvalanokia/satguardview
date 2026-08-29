@@ -22,6 +22,13 @@ public class SearchRequest
     [JsonPropertyName("limit")]
     public int? Limit { get; set; }
 
+    /// <summary>
+    /// Sort by field (e.g., "datetime" for sorting by date descending).
+    /// Used by Live View to fetch the most recent imagery.
+    /// </summary>
+    [JsonPropertyName("sortBy")]
+    public string? SortBy { get; set; }
+
     public string? Validate()
     {
         if (Bbox == null || Bbox.Length != 4)

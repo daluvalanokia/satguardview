@@ -7,7 +7,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EO Imagery Explorer - SatGuardView</title>
+    <title>SatGuardView — Satellite Imagery Explorer</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
@@ -16,27 +16,36 @@
         <div class="app-header__left">
             <div class="app-header__logo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" /><path d="M2 12h20" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    <path d="M12 2L4 6v6c0 5.5 3.84 10.74 8 12 4.16-1.26 8-6.5 8-12V6l-8-4z"/>
+                    <path d="M9 12l2 2 4-4" stroke-width="2.5"/>
+                </svg>
+                SatGuardView
+            </div>
+            <button class="app-header__tab active" id="tabExplorer" onclick="switchTab('explorer')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
                 EO Imagery Explorer
-            </div>
-            <div class="app-header__tab" id="liveViewTab" onclick="toggleLiveView()">
-                <div class="live-dot"></div>
+            </button>
+            <button class="app-header__tab" id="tabLiveView" onclick="switchTab('liveview')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                </svg>
                 Live View
-            </div>
+            </button>
         </div>
         <div class="app-header__right">
-            <span class="app-header__title">SatGuardView</span>
+            <span class="app-header__title">Open Satellite Data</span>
         </div>
     </header>
 
     <div class="app-container">
-        <aside class="sidebar-left" id="sidebarLeft">
+        <!-- EO Imagery Explorer Sidebar -->
+        <aside class="sidebar-left" id="sidebarExplorer">
             <div class="sidebar-left__header">
                 <div class="sidebar-left__title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18" /><circle cx="12" cy="12" r="3" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="color:#2563eb">
+                        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                     </svg>
                     <h2>EO Imagery Explorer</h2>
                 </div>
@@ -59,6 +68,14 @@
                         }
                     </select>
                 </div>
+                <div class="form-group geography-type-group" id="geographyTypeGroup" style="display:none">
+                    <label class="form-label" for="geographyTypeSelect">Geography Type</label>
+                    <select class="form-select" id="geographyTypeSelect" onchange="onGeographyTypeSelected()">
+                        <option value="">Select geography type...</option>
+                        <option value="administrative">Administrative Boundaries</option>
+                        <option value="physical">Physical Features</option>
+                    </select>
+                </div>
             </div>
 
             <div class="sidebar-left__section">
@@ -78,11 +95,11 @@
                 <div class="date-range">
                     <div class="form-group" style="flex:1">
                         <label class="form-label" for="startDate">Start Date</label>
-                        <input type="text" class="form-input" id="startDate" placeholder="MM/DD/YYYY" />
+                        <input type="date" class="form-input" id="startDate" />
                     </div>
                     <div class="form-group" style="flex:1">
                         <label class="form-label" for="endDate">End Date</label>
-                        <input type="text" class="form-input" id="endDate" placeholder="MM/DD/YYYY" />
+                        <input type="date" class="form-input" id="endDate" />
                     </div>
                 </div>
                 <div class="form-group cloud-slider-group">
@@ -95,24 +112,89 @@
             </div>
 
             <div class="search-btn-container">
-                <button class="search-btn" id="searchBtn" disabled onclick="searchImagery()">Search Imagery</button>
+                <button class="search-btn" id="searchBtn" disabled onclick="searchImagery()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-right:6px">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    Search Imagery
+                </button>
                 <div class="search-btn-hint" id="searchHint">Select a location to start</div>
             </div>
         </aside>
 
+        <!-- Live View Sidebar -->
+        <aside class="sidebar-left sidebar-liveview hidden" id="sidebarLiveView">
+            <div class="sidebar-left__header">
+                <div class="sidebar-left__title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="color:#2563eb">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
+                    <h2>Live Location Review</h2>
+                </div>
+            </div>
+            <div class="sidebar-left__subtitle">Daily MODIS Terra satellite imagery</div>
+
+            <div class="sidebar-left__section" style="border-bottom:none">
+                <div class="form-group">
+                    <label class="form-label" for="liveCountrySelect">Country</label>
+                    <select class="form-select" id="liveCountrySelect" onchange="onLiveCountrySelected()">
+                        <option value="">Select a country...</option>
+                        @if (ViewBag.Countries != null)
+                        {
+                            foreach (var country in ViewBag.Countries)
+                            {
+                                <option value="@country.Code" data-bbox="@string.Join(",", country.Bbox)">@country.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="liveCityInput">City</label>
+                    <div class="city-search-wrapper">
+                        <input type="text" class="form-input" id="liveCityInput" placeholder="Select a country first" disabled onkeydown="if(event.key==='Enter') searchLiveCity()" />
+                        <button class="city-search-btn" id="liveCitySearchBtn" onclick="searchLiveCity()" disabled title="Search city">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="live-view-helper">
+                    Select a country and city to drop a shield marker on the live satellite view. The map zooms to the location for review.
+                </div>
+            </div>
+
+            <div class="live-view-info" id="liveViewInfo">
+                <div class="live-view-info__row">
+                    <span class="live-view-info__label">Imagery Source</span>
+                    <span class="live-view-info__value">MODIS Terra</span>
+                </div>
+                <div class="live-view-info__row">
+                    <span class="live-view-info__label">Resolution</span>
+                    <span class="live-view-info__value">250m</span>
+                </div>
+                <div class="live-view-info__row">
+                    <span class="live-view-info__label">Last Refresh</span>
+                    <span class="live-view-info__value" id="liveViewLastRefresh">—</span>
+                </div>
+            </div>
+        </aside>
+
         <button class="toggle-left" id="toggleLeft" onclick="toggleLeftSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-        </button>
-        <button class="toggle-right" id="toggleRight" onclick="toggleRightSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
 
         <div class="map-container">
-            <div class="map-draw-hint" id="drawHint">Click on the map to set search area</div>
-            <div class="layer-switcher">
+            <div class="layer-switcher" id="layerSwitcher">
                 <button class="layer-switcher__btn active" id="layerStreet" onclick="switchLayer('street')">Street</button>
                 <button class="layer-switcher__btn" id="layerSatellite" onclick="switchLayer('satellite')">Live Satellite</button>
             </div>
+
+            <div class="live-timestamp-badge hidden" id="liveTimestampBadge">
+                <span class="live-timestamp-badge__dot"></span>
+                Live · MODIS Terra · <span id="liveTimestampDate"></span>
+            </div>
+
             <div id="map"></div>
         </div>
 
@@ -124,7 +206,7 @@
             <div class="sidebar-right__body" id="resultsBody">
                 <div class="results-empty">
                     <svg class="results-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /><line x1="12" y1="2" x2="12" y2="0" />
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                     </svg>
                     <div class="results-empty__text">Select a location and search to browse available imagery</div>
                 </div>
