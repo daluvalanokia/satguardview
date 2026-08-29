@@ -26,6 +26,18 @@ var explorerCityDebounceTimer = null;
 var explorerCitySuggestions = [];
 var explorerCitySelectedIndex = -1;
 
+// ===== App Status Indicator =====
+function setAppStatus(state, message) {
+    var status = document.getElementById('appStatus');
+    var dot = document.getElementById('appStatusDot');
+    var text = document.getElementById('appStatusText');
+    if (!status || !dot || !text) return;
+    status.classList.remove('idle', 'processing', 'waiting', 'error');
+    var msg = message || ({idle:'Ready', processing:'Processing...', waiting:'Waiting...', error:'Error'}[state] || 'Ready');
+    status.classList.add(state);
+    text.textContent = msg;
+}
+
 // Natural Earth 110m — lightweight (840KB) country borders GeoJSON
 var COUNTRY_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
 // Show country name labels only when zoomed in enough to avoid clutter
@@ -227,6 +239,7 @@ function switchTab(tab) {
         // Remove search markers
         clearSearchMarkers();
         // Add GIBS layer
+        setAppStatus('waiting', 'Loading satellite tiles...');
         if (!map.hasLayer(gibsLayer)) {
             gibsLayer.addTo(map);
         }
@@ -280,6 +293,9 @@ function createGibsLayer(lagDays) {
             updateLiveTimestamp();
         }
     });
+
+    layer.on('loading', function() { if (liveViewActive) setAppStatus('waiting', 'Loading tiles...'); });
+    layer.on('load', function() { if (liveViewActive) setAppStatus('idle'); });
 
     return layer;
 }
@@ -536,6 +552,7 @@ async function searchExplorerCity() {
     var btn = document.getElementById('explorerCitySearchBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="mini-spinner"></div>';
+    setAppStatus('processing', 'Locating city...');
 
     try {
         var response = await fetch('/api/geocode?q=' + encodeURIComponent(query));
@@ -545,7 +562,7 @@ async function searchExplorerCity() {
             response = await fetch('/api/geocode?q=' + encodeURIComponent(city));
             results = await response.json();
         }
-        if (!results || results.length === 0) { showToast('City not found: ' + city, 'error'); return; }
+        if (!results || results.length === 0) { showToast('City not found: ' + city, 'error'); setAppStatus('error', 'City not found'); return; }
 
         var best = results[0];
         var lat = parseFloat(best.lat);
@@ -557,11 +574,14 @@ async function searchExplorerCity() {
         map.setView([lat, lng], 6, { animate: true });
         enableSearch();
         showToast('Located: ' + best.name, 'success');
+        setAppStatus('idle');
     } catch (err) {
         showToast('Search error: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+        var st = document.getElementById('appStatus');
+        if (st && st.classList.contains('processing')) setAppStatus('idle');
     }
 }
 
@@ -718,6 +738,7 @@ async function searchLiveCity() {
     cityBtn = document.getElementById('liveCitySearchBtn');
     cityBtn.disabled = true;
     cityBtn.innerHTML = '<div class="mini-spinner"></div>';
+    setAppStatus('processing', 'Locating city...');
 
     try {
         var response = await fetch('/api/geocode?q=' + encodeURIComponent(query));
@@ -732,6 +753,7 @@ async function searchLiveCity() {
 
         if (!results || results.length === 0) {
             showToast('City not found: ' + city, 'error');
+            setAppStatus('error', 'City not found');
             return;
         }
 
@@ -752,6 +774,7 @@ async function searchLiveCity() {
             iconAnchor: [18, 36]
         });
 
+        setAppStatus('idle');
         liveShieldMarker = L.marker([lat, lng], { icon: shieldIcon }).addTo(map);
         liveShieldMarker.bindPopup(
             '<div style="font-size:13px"><strong>' + (best.display_name || city) + '</strong><br>' +
@@ -769,6 +792,8 @@ async function searchLiveCity() {
         cityInput.disabled = false;
         cityBtn.disabled = false;
         cityBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+        var st = document.getElementById('appStatus');
+        if (st && st.classList.contains('processing')) setAppStatus('idle');
     }
 }
 
@@ -801,6 +826,7 @@ async function searchImagery() {
     };
 
     showLoading();
+    setAppStatus('processing', 'Searching imagery...');
     var btn = document.getElementById('searchBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="mini-spinner" style="margin:0 auto"></div> Searching...';
@@ -832,13 +858,17 @@ async function searchImagery() {
         displayResults(filtered, data.total || searchResults.length);
         addResultMarkers(filtered);
         showToast('Found ' + filtered.length + ' imagery items', 'success');
+        setAppStatus('idle');
 
     } catch (err) {
         showToast('Network error: ' + err.message, 'error');
+        setAppStatus('error', 'Search failed');
         showEmptyState();
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-right:6px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search Imagery';
+        var st = document.getElementById('appStatus');
+        if (st && st.classList.contains('processing')) setAppStatus('idle');
     }
 }
 
