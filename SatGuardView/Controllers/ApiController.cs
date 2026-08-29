@@ -65,7 +65,7 @@ public class ApiController : ControllerBase
         try
         {
             var client = _httpClientFactory.CreateClient("Geocoding");
-            var url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(q.Trim())}&format=json&limit=5&addressdetails=1";
+            var url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(q.Trim())}&format=json&limit=5&addressdetails=1&accept-language=en";
             var response = await client.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -89,6 +89,39 @@ public class ApiController : ControllerBase
 
     [HttpGet("countries")]
     public ActionResult<List<Country>> GetCountries() => Ok(_geoDataService.GetCountries());
+
+    /// <summary>
+    /// Autocomplete city names for a given country (incremental search).
+    /// Uses Nominatim with accept-language=en for English results.
+    /// </summary>
+    [HttpGet("cities")]
+    public async Task<ActionResult> SearchCities([FromQuery] string q, [FromQuery] string? country = null)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+            return Ok(new List<object>());
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("Geocoding");
+            var countryCode = string.IsNullOrWhiteSpace(country) ? "" : $"&countrycodes={Uri.EscapeDataString(country.Trim().ToLowerInvariant())}";
+            var url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(q.Trim())}{countryCode}&format=json&limit=8&addressdetails=1&accept-language=en&featureClass=P";
+            var response = await client.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("City autocomplete failed: {StatusCode}", response.StatusCode);
+                return Ok(new List<object>());
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            return Content(content, "application/json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "City autocomplete error");
+            return Ok(new List<object>());
+        }
+    }
 
     [HttpGet("health")]
     public ActionResult<object> Health() => Ok(new { status = "healthy", service = "SatGuardView", timestamp = DateTime.UtcNow.ToString("O") });

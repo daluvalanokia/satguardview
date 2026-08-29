@@ -16,6 +16,11 @@ var liveShieldMarker = null;
 var liveViewActive = false;
 var countryBordersLayer = null;
 
+// City autocomplete state
+var cityDebounceTimer = null;
+var citySuggestions = [];
+var citySelectedIndex = -1;
+
 // Natural Earth 110m — lightweight (840KB) country borders GeoJSON
 var COUNTRY_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
 // Show country name labels only when zoomed in enough to avoid clutter
@@ -401,6 +406,139 @@ function onLiveCountrySelected() {
         liveShieldMarker = null;
     }
 }
+
+// ===== City Autocomplete (incremental search) =====
+function onCityInputChanged() {
+    var input = document.getElementById('liveCityInput');
+    var query = input.value.trim();
+    var dropdown = document.getElementById('citySuggestions');
+
+    clearTimeout(cityDebounceTimer);
+
+    if (query.length < 2) {
+        dropdown.style.display = 'none';
+        citySuggestions = [];
+        citySelectedIndex = -1;
+        return;
+    }
+
+    // Debounce — wait 300ms after last keystroke
+    cityDebounceTimer = setTimeout(function() { fetchCitySuggestions(query); }, 300);
+}
+
+async function fetchCitySuggestions(query) {
+    var countrySelect = document.getElementById('liveCountrySelect');
+    var countryCode = countrySelect.value || '';
+    var dropdown = document.getElementById('citySuggestions');
+
+    try {
+        var url = '/api/cities?q=' + encodeURIComponent(query);
+        if (countryCode) url += '&country=' + encodeURIComponent(countryCode);
+        var response = await fetch(url);
+        if (!response.ok) { dropdown.style.display = 'none'; return; }
+
+        var results = await response.json();
+        if (!results || results.length === 0) {
+            dropdown.style.display = 'none';
+            citySuggestions = [];
+            citySelectedIndex = -1;
+            return;
+        }
+
+        citySuggestions = results;
+        citySelectedIndex = -1;
+        renderCitySuggestions();
+    } catch (err) {
+        console.error('City autocomplete error:', err);
+        dropdown.style.display = 'none';
+    }
+}
+
+function renderCitySuggestions() {
+    var dropdown = document.getElementById('citySuggestions');
+    if (citySuggestions.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+
+    var html = '';
+    for (var i = 0; i < citySuggestions.length; i++) {
+        var item = citySuggestions[i];
+        var name = item.name || item.display_name.split(',')[0] || 'Unknown';
+        var desc = item.display_name || '';
+        // Truncate long display names
+        if (desc.length > 60) desc = desc.substring(0, 57) + '...';
+        html += '<div class="city-suggestion-item" data-index="' + i + '" onclick="selectCitySuggestion(' + i + ')">' +
+            '<div class="city-suggestion-item__name">' + escapeHtml(name) + '</div>' +
+            '<div class="city-suggestion-item__desc">' + escapeHtml(desc) + '</div>' +
+            '</div>';
+    }
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+}
+
+function selectCitySuggestion(index) {
+    if (index < 0 || index >= citySuggestions.length) return;
+    var item = citySuggestions[index];
+    var name = item.name || item.display_name.split(',')[0] || '';
+    document.getElementById('liveCityInput').value = name;
+    document.getElementById('citySuggestions').style.display = 'none';
+    citySelectedIndex = -1;
+    searchLiveCity();
+}
+
+function onCityKeydown(event) {
+    var dropdown = document.getElementById('citySuggestions');
+    if (dropdown.style.display === 'none' || citySuggestions.length === 0) {
+        if (event.key === 'Enter') searchLiveCity();
+        return;
+    }
+
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        citySelectedIndex = Math.min(citySelectedIndex + 1, citySuggestions.length - 1);
+        highlightCitySuggestion();
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        citySelectedIndex = Math.max(citySelectedIndex - 1, -1);
+        highlightCitySuggestion();
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (citySelectedIndex >= 0) {
+            selectCitySuggestion(citySelectedIndex);
+        } else {
+            searchLiveCity();
+        }
+    } else if (event.key === 'Escape') {
+        dropdown.style.display = 'none';
+        citySelectedIndex = -1;
+    }
+}
+
+function highlightCitySuggestion() {
+    var items = document.querySelectorAll('.city-suggestion-item');
+    for (var i = 0; i < items.length; i++) {
+        items[i].classList.remove('selected');
+    }
+    if (citySelectedIndex >= 0 && items[citySelectedIndex]) {
+        items[citySelectedIndex].classList.add('selected');
+        items[citySelectedIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close suggestions when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.city-search-wrapper')) {
+        var dropdown = document.getElementById('citySuggestions');
+        if (dropdown) dropdown.style.display = 'none';
+    }
+});
 
 // ===== City Search (Live View — geocoding via Nominatim) =====
 async function searchLiveCity() {
