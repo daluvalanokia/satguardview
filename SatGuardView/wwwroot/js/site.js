@@ -23,13 +23,21 @@ var BORDER_FILL_OPACITY = 0.08;
 // Tile URLs
 var streetTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
 var satelliteTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-var gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{gibsDate}/250m/{z}/{y}/{x}.jpg';
+var gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{gibsDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
 var esriAttribution = 'Tiles &copy; Esri, Reference &copy; Esri';
 var gibsAttribution = 'Imagery &copy; NASA GIBS, Reference &copy; Esri';
 
+// GIBS "best" MODIS Terra imagery is typically published with ~1 day lag,
+// so requesting today's date reliably 404s. Default to yesterday, and fall
+// back further if that day's tiles are also unavailable.
+var GIBS_DEFAULT_LAG_DAYS = 1;
+var gibsCurrentLagDays = GIBS_DEFAULT_LAG_DAYS;
+var GIBS_MAX_FALLBACK_DAYS = 5;
+
 // ===== Date Helpers =====
-function getGibsDate() {
+function getGibsDate(daysAgo) {
     var d = new Date();
+    d.setDate(d.getDate() - (daysAgo || GIBS_DEFAULT_LAG_DAYS));
     return d.getFullYear() + '-' +
         String(d.getMonth() + 1).padStart(2, '0') + '-' +
         String(d.getDate()).padStart(2, '0');
@@ -78,12 +86,7 @@ function initMap() {
 
     streetLayer = L.tileLayer(streetTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
     satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
-    gibsLayer = L.tileLayer(gibsUrl, {
-        gibsDate: getGibsDate(),
-        attribution: gibsAttribution,
-        maxZoom: 9,
-        tileSize: 256
-    });
+    gibsLayer = createGibsLayer(gibsCurrentLagDays);
 
     streetLayer.addTo(map);
     map.zoomControl.setPosition('bottomleft');
@@ -155,7 +158,6 @@ function switchTab(tab) {
         clearSearchMarkers();
         // Add GIBS layer
         if (!map.hasLayer(gibsLayer)) {
-            gibsLayer.options.gibsDate = getGibsDate();
             gibsLayer.addTo(map);
         }
         // Update timestamp
@@ -165,7 +167,7 @@ function switchTab(tab) {
 
 // ===== Live View Timestamp Badge =====
 function updateLiveTimestamp() {
-    var dateStr = getGibsDate();
+    var dateStr = getGibsDate(gibsCurrentLagDays);
     var badge = document.getElementById('liveTimestampDate');
     if (badge) badge.textContent = dateStr;
 
@@ -176,17 +178,40 @@ function updateLiveTimestamp() {
 // ===== Refresh Live View (re-adds GIBS layer with today's date) =====
 function refreshLiveView() {
     if (!liveViewActive) return;
-    var newDate = getGibsDate();
+    gibsCurrentLagDays = GIBS_DEFAULT_LAG_DAYS;
     if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
-    gibsLayer = L.tileLayer(gibsUrl, {
-        gibsDate: newDate,
-        attribution: gibsAttribution,
-        maxZoom: 9,
-        tileSize: 256
-    });
+    gibsLayer = createGibsLayer(gibsCurrentLagDays);
     gibsLayer.addTo(map);
     updateLiveTimestamp();
-    showToast('Live view refreshed — ' + newDate, 'success');
+    showToast('Live view refreshed — ' + getGibsDate(gibsCurrentLagDays), 'success');
+}
+
+// ===== GIBS Layer Factory (with automatic day-lag fallback on tile errors) =====
+function createGibsLayer(lagDays) {
+    var layer = L.tileLayer(gibsUrl, {
+        gibsDate: getGibsDate(lagDays),
+        attribution: gibsAttribution,
+        maxZoom: 9,
+        tileSize: 256,
+        errorTileUrl: ''
+    });
+
+    var erroredTiles = 0;
+    layer.on('tileerror', function() {
+        erroredTiles++;
+        // If a meaningful chunk of tiles fail (imagery not yet published for this date),
+        // step back a day and rebuild the layer, up to GIBS_MAX_FALLBACK_DAYS.
+        if (erroredTiles >= 3 && gibsCurrentLagDays < GIBS_MAX_FALLBACK_DAYS && liveViewActive) {
+            erroredTiles = 0;
+            gibsCurrentLagDays++;
+            if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
+            gibsLayer = createGibsLayer(gibsCurrentLagDays);
+            gibsLayer.addTo(map);
+            updateLiveTimestamp();
+        }
+    });
+
+    return layer;
 }
 
 // ===== Layer Switching (EO Explorer only) =====

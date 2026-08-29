@@ -42,12 +42,37 @@ public class SearchRequest
         return null;
     }
 
+    /// <summary>
+    /// Builds an RFC3339-compliant datetime interval for the STAC API.
+    /// The Element84 STAC API rejects date-only strings (e.g. "2026-05-31/2026-08-29")
+    /// with "datetime value is invalid, does not match RFC3339 format" — it requires
+    /// a full timestamp with time and timezone (e.g. "2026-05-31T00:00:00Z/2026-08-29T23:59:59Z").
+    /// </summary>
     public string? GetDateTimeRange()
     {
-        if (!string.IsNullOrEmpty(StartDate) && !string.IsNullOrEmpty(EndDate))
-            return $"{StartDate}/{EndDate}";
-        if (!string.IsNullOrEmpty(StartDate)) return $"{StartDate}/..";
-        if (!string.IsNullOrEmpty(EndDate)) return $"../{EndDate}";
+        var start = ToRfc3339Start(StartDate);
+        var end = ToRfc3339End(EndDate);
+
+        if (start != null && end != null) return $"{start}/{end}";
+        if (start != null) return $"{start}/..";
+        if (end != null) return $"../{end}";
         return null;
+    }
+
+    private static string? ToRfc3339Start(string? date)
+    {
+        if (string.IsNullOrWhiteSpace(date)) return null;
+        var d = date.Trim();
+        // Already has a time component
+        if (d.Contains('T')) return d.EndsWith("Z") || d.Contains('+') ? d : d + "Z";
+        return $"{d}T00:00:00Z";
+    }
+
+    private static string? ToRfc3339End(string? date)
+    {
+        if (string.IsNullOrWhiteSpace(date)) return null;
+        var d = date.Trim();
+        if (d.Contains('T')) return d.EndsWith("Z") || d.Contains('+') ? d : d + "Z";
+        return $"{d}T23:59:59Z";
     }
 }
