@@ -14,6 +14,12 @@ var currentBbox = null;
 var searchResults = [];
 var liveShieldMarker = null;
 var liveViewActive = false;
+var countryBordersLayer = null;
+
+// Natural Earth 110m — lightweight (840KB) country borders GeoJSON
+var COUNTRY_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+// Show country name labels only when zoomed in enough to avoid clutter
+var COUNTRY_LABEL_MIN_ZOOM = 3;
 
 // Light yellow border color (#FFD700) per user instruction
 var BORDER_COLOR = '#FFD700';
@@ -92,9 +98,63 @@ function initMap() {
     map.zoomControl.setPosition('bottomleft');
     L.control.attribution({ position: 'bottomright', prefix: 'Leaflet' }).addTo(map);
     map.on('click', onMapClick);
+    map.on('zoomend', updateLabelVisibility);
+
+    // Load country borders overlay (yellow lines + name labels)
+    loadCountryBorders();
 
     // Update timestamp
     updateLiveTimestamp();
+}
+
+// ===== Country Borders Overlay =====
+function loadCountryBorders() {
+    fetch(COUNTRY_GEOJSON_URL)
+        .then(function(r) { return r.json(); })
+        .then(function(geojson) {
+            countryBordersLayer = L.geoJSON(geojson, {
+                style: {
+                    color: '#FFD700',
+                    weight: 1,
+                    opacity: 0.8,
+                    fillColor: '#FFD700',
+                    fillOpacity: 0
+                },
+                onEachFeature: function(feature, layer) {
+                    var name = feature.properties.NAME || feature.properties.NAME_EN || '';
+                    if (name) {
+                        layer.bindTooltip(name, {
+                            permanent: true,
+                            direction: 'center',
+                            className: 'country-label',
+                            opacity: 0.85
+                        });
+                    }
+                    // Highlight border slightly on hover
+                    layer.on('mouseover', function(e) {
+                        e.target.setStyle({ weight: 2, opacity: 1, color: '#FFE54C' });
+                    });
+                    layer.on('mouseout', function(e) {
+                        countryBordersLayer.resetStyle(e.target);
+                    });
+                }
+            });
+            countryBordersLayer.addTo(map);
+            updateLabelVisibility();
+        })
+        .catch(function(err) {
+            console.error('Failed to load country borders:', err);
+        });
+}
+
+function updateLabelVisibility() {
+    if (!countryBordersLayer) return;
+    var container = map.getContainer();
+    if (map.getZoom() >= COUNTRY_LABEL_MIN_ZOOM) {
+        container.classList.add('show-country-labels');
+    } else {
+        container.classList.remove('show-country-labels');
+    }
 }
 
 // ===== Tab Switching =====
