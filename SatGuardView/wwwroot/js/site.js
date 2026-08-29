@@ -21,6 +21,11 @@ var cityDebounceTimer = null;
 var citySuggestions = [];
 var citySelectedIndex = -1;
 
+// EO Explorer city autocomplete state
+var explorerCityDebounceTimer = null;
+var explorerCitySuggestions = [];
+var explorerCitySelectedIndex = -1;
+
 // Natural Earth 110m — lightweight (840KB) country borders GeoJSON
 var COUNTRY_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
 // Show country name labels only when zoomed in enough to avoid clutter
@@ -327,6 +332,8 @@ function onCountrySelected() {
         currentBbox = null;
         if (currentRectangle) { map.removeLayer(currentRectangle); currentRectangle = null; }
         if (geoGroup) geoGroup.style.display = 'none';
+        var cityGroup = document.getElementById('explorerCityGroup');
+        if (cityGroup) cityGroup.style.display = 'none';
         disableSearch();
         return;
     }
@@ -342,8 +349,17 @@ function onCountrySelected() {
     // Show Geography Type dropdown
     if (geoGroup) {
         geoGroup.style.display = 'block';
-        // Reset selection
         document.getElementById('geographyTypeSelect').value = '';
+    }
+
+    // Show city search
+    var cityGroup = document.getElementById('explorerCityGroup');
+    if (cityGroup) {
+        cityGroup.style.display = 'block';
+        var cityInput = document.getElementById('explorerCityInput');
+        if (cityInput) cityInput.value = '';
+        var cityDropdown = document.getElementById('explorerCitySuggestions');
+        if (cityDropdown) cityDropdown.style.display = 'none';
     }
 
     enableSearch();
@@ -407,6 +423,149 @@ function onLiveCountrySelected() {
     }
 }
 
+// ===== EO Explorer City Autocomplete =====
+function onExplorerCityInputChanged() {
+    var input = document.getElementById('explorerCityInput');
+    var query = input.value.trim();
+    var dropdown = document.getElementById('explorerCitySuggestions');
+
+    clearTimeout(explorerCityDebounceTimer);
+    if (query.length < 2) {
+        dropdown.style.display = 'none';
+        explorerCitySuggestions = [];
+        explorerCitySelectedIndex = -1;
+        return;
+    }
+    explorerCityDebounceTimer = setTimeout(function() { fetchExplorerCitySuggestions(query); }, 300);
+}
+
+async function fetchExplorerCitySuggestions(query) {
+    var countrySelect = document.getElementById('countrySelect');
+    var countryCode = countrySelect.value || '';
+    var dropdown = document.getElementById('explorerCitySuggestions');
+
+    try {
+        var url = '/api/cities?q=' + encodeURIComponent(query);
+        if (countryCode) url += '&country=' + encodeURIComponent(countryCode);
+        var response = await fetch(url);
+        if (!response.ok) { dropdown.style.display = 'none'; return; }
+        var results = await response.json();
+        if (!results || results.length === 0) {
+            dropdown.style.display = 'none';
+            explorerCitySuggestions = [];
+            explorerCitySelectedIndex = -1;
+            return;
+        }
+        explorerCitySuggestions = results;
+        explorerCitySelectedIndex = -1;
+        renderExplorerCitySuggestions();
+    } catch (err) {
+        console.error('Explorer city autocomplete error:', err);
+        dropdown.style.display = 'none';
+    }
+}
+
+function renderExplorerCitySuggestions() {
+    var dropdown = document.getElementById('explorerCitySuggestions');
+    if (explorerCitySuggestions.length === 0) { dropdown.style.display = 'none'; return; }
+    var html = '';
+    for (var i = 0; i < explorerCitySuggestions.length; i++) {
+        var item = explorerCitySuggestions[i];
+        var name = item.name || item.display_name.split(',')[0] || 'Unknown';
+        var desc = item.display_name || '';
+        if (desc.length > 60) desc = desc.substring(0, 57) + '...';
+        html += '<div class="city-suggestion-item" data-index="' + i + '" onclick="selectExplorerCitySuggestion(' + i + ')">' +
+            '<div class="city-suggestion-item__name">' + escapeHtml(name) + '</div>' +
+            '<div class="city-suggestion-item__desc">' + escapeHtml(desc) + '</div></div>';
+    }
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+}
+
+function selectExplorerCitySuggestion(index) {
+    if (index < 0 || index >= explorerCitySuggestions.length) return;
+    var item = explorerCitySuggestions[index];
+    var name = item.name || item.display_name.split(',')[0] || '';
+    document.getElementById('explorerCityInput').value = name;
+    document.getElementById('explorerCitySuggestions').style.display = 'none';
+    explorerCitySelectedIndex = -1;
+    searchExplorerCity();
+}
+
+function onExplorerCityKeydown(event) {
+    var dropdown = document.getElementById('explorerCitySuggestions');
+    if (dropdown.style.display === 'none' || explorerCitySuggestions.length === 0) {
+        if (event.key === 'Enter') searchExplorerCity();
+        return;
+    }
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        explorerCitySelectedIndex = Math.min(explorerCitySelectedIndex + 1, explorerCitySuggestions.length - 1);
+        highlightExplorerCitySuggestion();
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        explorerCitySelectedIndex = Math.max(explorerCitySelectedIndex - 1, -1);
+        highlightExplorerCitySuggestion();
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (explorerCitySelectedIndex >= 0) selectExplorerCitySuggestion(explorerCitySelectedIndex);
+        else searchExplorerCity();
+    } else if (event.key === 'Escape') {
+        dropdown.style.display = 'none';
+        explorerCitySelectedIndex = -1;
+    }
+}
+
+function highlightExplorerCitySuggestion() {
+    var items = document.querySelectorAll('#explorerCitySuggestions .city-suggestion-item');
+    for (var i = 0; i < items.length; i++) items[i].classList.remove('selected');
+    if (explorerCitySelectedIndex >= 0 && items[explorerCitySelectedIndex]) {
+        items[explorerCitySelectedIndex].classList.add('selected');
+        items[explorerCitySelectedIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
+async function searchExplorerCity() {
+    var input = document.getElementById('explorerCityInput');
+    var countrySelect = document.getElementById('countrySelect');
+    var city = input.value.trim();
+    var country = countrySelect.options[countrySelect.selectedIndex].text;
+    if (!city) { showToast('Enter a city name', 'error'); return; }
+
+    var query = city + ', ' + country;
+    var btn = document.getElementById('explorerCitySearchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="mini-spinner"></div>';
+
+    try {
+        var response = await fetch('/api/geocode?q=' + encodeURIComponent(query));
+        if (!response.ok) throw new Error('Geocoding failed');
+        var results = await response.json();
+        if (!results || results.length === 0) {
+            response = await fetch('/api/geocode?q=' + encodeURIComponent(city));
+            results = await response.json();
+        }
+        if (!results || results.length === 0) { showToast('City not found: ' + city, 'error'); return; }
+
+        var best = results[0];
+        var lat = parseFloat(best.lat);
+        var lng = parseFloat(best.lon);
+        var delta = 0.5;
+        currentBbox = [Math.max(-180, lng - delta), Math.max(-90, lat - delta),
+                       Math.min(180, lng + delta), Math.min(90, lat + delta)];
+        drawRectangleOnMap(currentBbox);
+        map.setView([lat, lng], 6, { animate: true });
+        enableSearch();
+        showToast('Located: ' + best.name, 'success');
+    } catch (err) {
+        showToast('Search error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+    }
+}
+
+// Close explorer suggestions on outside click (extend existing handler)
 // ===== City Autocomplete (incremental search) =====
 function onCityInputChanged() {
     var input = document.getElementById('liveCityInput');
@@ -535,8 +694,10 @@ function escapeHtml(text) {
 // Close suggestions when clicking outside
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.city-search-wrapper')) {
-        var dropdown = document.getElementById('citySuggestions');
-        if (dropdown) dropdown.style.display = 'none';
+        var d1 = document.getElementById('citySuggestions');
+        if (d1) d1.style.display = 'none';
+        var d2 = document.getElementById('explorerCitySuggestions');
+        if (d2) d2.style.display = 'none';
     }
 });
 
