@@ -338,8 +338,12 @@ body.dark-mode .leaflet-popup-content strong { color: #f8fafc; }
     }
 }
 
-/* ===== Attribution: hidden but present in DOM (required by ODbL license) ===== */
+/* ===== Kill ALL watermarks & attribution overlays ===== */
+/* Hide Leaflet attribution control completely */
 .leaflet-control-attribution {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
     background: transparent !important;
     font-size: 0 !important;
     line-height: 0 !important;
@@ -348,7 +352,6 @@ body.dark-mode .leaflet-popup-content strong { color: #f8fafc; }
     max-height: 0 !important;
     max-width: 0 !important;
     overflow: hidden !important;
-    opacity: 0 !important;
     border: none !important;
     box-shadow: none !important;
     position: absolute !important;
@@ -356,7 +359,23 @@ body.dark-mode .leaflet-popup-content strong { color: #f8fafc; }
     pointer-events: none !important;
 }
 .leaflet-control-attribution a {
+    display: none !important;
     font-size: 0 !important;
+}
+
+/* Hide any tile-provider watermarks that might appear */
+.leaflet-tile-container::after,
+.leaflet-tile-pane::after,
+.leaflet-overlay-pane::after,
+.leaflet-container::after {
+    display: none !important;
+    content: none !important;
+    opacity: 0 !important;
+}
+
+/* Hide any div overlay text on the map (potential watermarks) */
+.leaflet-map-pane > div:not(.leaflet-tile-pane):not(.leaflet-overlay-pane):not(.leaflet-shadow-pane):not(.leaflet-marker-pane):not(.leaflet-popup-pane):not(.leaflet-tooltip-pane):not(.leaflet-controls-pane) {
+    pointer-events: none;
 }
 
 /* ===== Quick Locations ===== */
