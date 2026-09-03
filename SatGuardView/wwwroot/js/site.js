@@ -72,7 +72,7 @@ var BORDER_FILL_OPACITY = 0.08;
 
 // Tile URLs
 var streetTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Sentinel_2_L2A_TrueColor/default/{satelliteDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
+var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Sentinel_2_L2A_TrueColor/default/' + getGibsDate(1) + '/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
 var darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 var topo3dTilesUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
 var osmRoadTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -84,7 +84,6 @@ var cartoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright"
 
 var GIBS_DEFAULT_LAG_DAYS = 1;
 var gibsCurrentLagDays = GIBS_DEFAULT_LAG_DAYS;
-var satelliteBasemapDate = getGibsDate(1); // 1-day lag for satellite basemap
 var GIBS_MAX_FALLBACK_DAYS = 5;
 
 // ===== Date Helpers =====
@@ -140,7 +139,7 @@ function initMap() {
     });
 
     streetLayer = L.tileLayer(streetTilesUrl, { attribution: streetAttribution, maxZoom: 19, subdomains: 'abcd' });
-    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: gibsAttribution, maxZoom: 9, satelliteDate: satelliteBasemapDate, tileSize: 256 });
+    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: gibsAttribution, maxZoom: 9, tileSize: 256 });
     darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 18, subdomains: 'abcd' });
     topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: opentopoAttribution, maxZoom: 17, subdomains: 'abc' });
     roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: osmAttribution, maxZoom: 19, subdomains: 'abc' });
