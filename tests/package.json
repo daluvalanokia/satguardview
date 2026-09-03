@@ -1,0 +1,12 @@
+{
+  "name": "satguardview-smoke",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One-step happy-path validation suite for all SatGuardView menu use cases",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

@@ -1645,6 +1645,9 @@ document.addEventListener('keydown', function(e) {
 
 // ===== App Initialization =====
 document.addEventListener('DOMContentLoaded', function() {
+    // Sync JS state with persisted preference BEFORE initMap picks the base layer.
+    // Default is dark (body ships with class="dark-mode"); 'false' in localStorage opts out.
+    isDarkMode = localStorage.getItem('darkMode') !== 'false';
     initMap();
     setDefaultDateRange();
 
@@ -1656,9 +1659,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ensureDrawAreaUI();
     ensureResultsControls();
 
-    if (localStorage.getItem('darkMode') === 'true') {
-        setDarkMode(true);
-    }
+    setDarkMode(isDarkMode); // reconcile body class / toggle icons with the JS state set above
 
     handleMobileLayout();
     window.addEventListener('resize', handleMobileLayout);
