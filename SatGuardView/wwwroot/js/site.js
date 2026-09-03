@@ -71,19 +71,20 @@ var BORDER_FILL_COLOR = '#FFD700';
 var BORDER_FILL_OPACITY = 0.08;
 
 // Tile URLs
-var streetTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
-var satelliteTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+var streetTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Sentinel_2_L2A_TrueColor/default/{satelliteDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
 var darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-var topo3dTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
-var osmRoadTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-var esri3dAttribution = 'Tiles &copy; Esri, Source: Esri, USGS, NOAA';
-var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-var esriAttribution = 'Tiles &copy; Esri, Reference &copy; Esri';
-var gibsAttribution = 'Imagery &copy; NASA GIBS, Reference &copy; Esri';
+var topo3dTilesUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+var osmRoadTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+var opentopoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>, SRTM';
+var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+var streetAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+var gibsAttribution = 'Imagery &copy; NASA GIBS (public domain)';
 var cartoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 var GIBS_DEFAULT_LAG_DAYS = 1;
 var gibsCurrentLagDays = GIBS_DEFAULT_LAG_DAYS;
+var satelliteBasemapDate = getGibsDate(1); // 1-day lag for satellite basemap
 var GIBS_MAX_FALLBACK_DAYS = 5;
 
 // ===== Date Helpers =====
@@ -138,10 +139,10 @@ function initMap() {
         attributionControl: true
     });
 
-    streetLayer = L.tileLayer(streetTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
-    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
+    streetLayer = L.tileLayer(streetTilesUrl, { attribution: streetAttribution, maxZoom: 19, subdomains: 'abcd' });
+    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: gibsAttribution, maxZoom: 9, satelliteDate: satelliteBasemapDate, tileSize: 256 });
     darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 18, subdomains: 'abcd' });
-    topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: esri3dAttribution, maxZoom: 19 });
+    topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: opentopoAttribution, maxZoom: 17, subdomains: 'abc' });
     roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: osmAttribution, maxZoom: 19, subdomains: 'abc' });
     gibsLayer = createGibsLayer(gibsCurrentLagDays);
 
@@ -496,7 +497,7 @@ function setDarkMode(enable) {
             if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
             if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
             if (!darkLayer) {
-                darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 18, subdomains: 'abcd' });
+                darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 19, subdomains: 'abcd' });
             }
             if (!map.hasLayer(darkLayer)) darkLayer.addTo(map);
         } else {
