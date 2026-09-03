@@ -1100,6 +1100,8 @@ async function searchImagery(isLoadMore) {
     if (!currentBbox) { showToast('Select a location first', 'error'); return; }
 
     if (isLoadMore) {
+        var lmb = document.getElementById('loadMoreBtn');
+        if (lmb) { lmb.disabled = true; lmb.innerHTML = '<div class="mini-spinner" style="margin:0 auto"></div> Loading...'; }
         currentPage++;
     } else {
         currentPage = 1;
@@ -1178,10 +1180,16 @@ async function searchImagery(isLoadMore) {
         }
         var st = document.getElementById('appStatus');
         if (st && st.classList.contains('processing')) setAppStatus('idle');
+        var lmb = document.getElementById('loadMoreBtn');
+        if (lmb && lmb.disabled && isLoadMore) {
+            lmb.disabled = false;
+            lmb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-right:6px"><polyline points="6 9 12 15 18 9"/></svg> Load More Results';
+        }
     }
 }
 
 function loadMoreResults() {
+    if (!hasMore) { showToast('All results loaded', 'info'); return; }
     searchImagery(true);
 }
 
@@ -1387,12 +1395,12 @@ function displayResults(items, totalCount) {
 
     if (footer) {
         var countText = items.length + ' of ' + (totalCount || items.length) + ' items shown';
-        var loadMoreBtnHtml = '';
-        if (hasMore) {
-            loadMoreBtnHtml = '<button type="button" id="loadMoreBtn" class="load-more-btn" onclick="loadMoreResults()" style="width:100%; margin-top:8px; padding:8px; background:#2563eb; color:#ffffff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Load More</button>';
-        }
-        footer.innerHTML = '<div>' + countText + '</div>' + loadMoreBtnHtml;
+        footer.innerHTML = '<div>' + countText + '</div>';
     }
+    // Show the static Load More button only when more pages exist (fixes always-visible
+    // button + duplicate-id collision with the old injected footer button).
+    var loadMoreContainer = document.getElementById('loadMoreContainer');
+    if (loadMoreContainer) loadMoreContainer.style.display = hasMore ? '' : 'none';
 }
 
 // ===== Result Markers =====

@@ -53,7 +53,7 @@ async function expectToast(page, timeout = 8000) {
 test('UC-01 App shell loads with all menu chrome', async ({ page }) => {
   await gotoApp(page);
   await expect(page).toHaveTitle(/SatGuardView/i);
-  await expect(page.locator('#map .leaflet-container')).toBeVisible();
+  await expect(page.locator('#map.leaflet-container')).toBeVisible();
   await expect(page.locator('#appStatusText')).toHaveText(/Ready/i);
   for (const id of ['#tabExplorer', '#tabLiveView', '#layerStreet', '#layerSatellite',
     '#layer3d', '#layerRoad', '#darkModeToggle', '#hamburgerMenu', '#drawAreaBtn']) {
@@ -144,7 +144,8 @@ test('UC-05a Dark mode toggle switches to dark tiles', async ({ page }) => {
   await expect(page.locator('body')).not.toHaveClass(/dark-mode/);
   await page.click('#darkModeToggle');
   await expect(page.locator('body')).toHaveClass(/dark-mode/);
-  await expect(page.locator('.dark-tiles')).toBeVisible({ timeout: 20000 });
+  // .dark-tiles layer container is a 0x0 div — assert a real tile inside it loads
+  await expect(page.locator('.dark-tiles img.leaflet-tile').first()).toBeVisible({ timeout: 20000 });
 });
 
 test('UC-05b Dark mode toggle returns to light tiles', async ({ page }) => {
@@ -229,16 +230,32 @@ test('UC-10b Export GeoJSON downloads a .geojson file', async ({ page }) => {
 /* ===== 11 Pagination ================================================= */
 
 test('UC-11 Load More appends additional results', async ({ page }) => {
-  await withResults(page);
-  const before = await page.locator('.result-item').count();
+  // Widen the search so the catalog returns >50 hits, guaranteeing a real page 2
+  await gotoApp(page);
+  await page.click('.quick-loc-btn >> nth=0'); // Varanasi
+  await page.fill('#startDate', '2026-01-01');
+  await page.fill('#cloudSlider', '100');
+  await page.click('#searchBtn');
+  await expect(page.locator('.result-item').first()).toBeVisible({ timeout: STAC_TIMEOUT });
   const loadMore = page.locator('#loadMoreBtn');
-  if (await loadMore.isVisible()) {
-    await loadMore.click();
-    await expect.poll(async () => page.locator('.result-item').count(),
-      { timeout: STAC_TIMEOUT }).toBeGreaterThan(before);
-  } else {
-    test.info().annotations.push({ type: 'note', description: 'Single page of results — pagination complete, Load More correctly absent' });
-  }
+  await expect(loadMore).toBeVisible(); // hasMore=true => button must show
+  const before = await page.locator('.result-item').count();
+  const toastLoaded = page
+    .locator('#toast.visible')
+    .filter({ hasText: /Loaded page 2/i })
+    .waitFor({ timeout: STAC_TIMEOUT });
+  await loadMore.click();
+  await expect.poll(async () => page.locator('.result-item').count(),
+    { timeout: STAC_TIMEOUT }).toBeGreaterThan(before);
+  await toastLoaded; // toast auto-hides after 3s — listener was armed before click
+});
+
+test('UC-11b Load More hidden when single page of results', async ({ page }) => {
+  await gotoApp(page);
+  await page.click('.quick-loc-btn >> nth=0'); // Varanasi, default 3mo/20% => 21 hits
+  await page.click('#searchBtn');
+  await expect(page.locator('.result-item').first()).toBeVisible({ timeout: STAC_TIMEOUT });
+  await expect(page.locator('#loadMoreContainer')).toBeHidden(); // hasMore=false => hidden
 });
 
 /* ===== 12 Draw Area ================================================== */
@@ -273,6 +290,7 @@ test('UC-13b D toggles dark mode', async ({ page }) => {
 
 test('UC-13c S focuses search', async ({ page }) => {
   await gotoApp(page);
+  await page.click('.quick-loc-btn >> nth=0'); // enable search controls
   await page.keyboard.press('s');
   const focused = await page.evaluate(() => ({
     id: document.activeElement ? document.activeElement.id : '',
@@ -317,14 +335,14 @@ test('UC-14b Live View: city search shows live marker on map', async ({ page }) 
   await expect(page.locator('#appStatusText')).toHaveText(/Ready/i);
 });
 
-test('UC-14c Live View: directional view selector is present and switchable', async ({ page }) => {
+test('UC-14c Live View: directional view buttons present and switchable', async ({ page }) => {
   await gotoApp(page);
   await page.click('#tabLiveView');
-  const dir = page.locator('#directionalViewSelector');
-  await expect(dir).toBeVisible();
-  const options = await dir.locator('option').all();
-  test.skip(options.length < 2, 'no directional options');
-  const value = await options[1].getAttribute('value');
-  await dir.selectOption(value);
-  await expect(dir).toHaveValue(value);
+  for (const id of ['#dirBtnNorth', '#dirBtnSouth', '#dirBtnEast', '#dirBtnWest']) {
+    await expect(page.locator(id)).toBeVisible();
+  }
+  await expect(page.locator('#dirBtnNorth')).toHaveClass(/active/);
+  await page.click('#dirBtnSouth');
+  await expect(page.locator('#dirBtnSouth')).toHaveClass(/active/);
+  await expect(page.locator('#dirBtnNorth')).not.toHaveClass(/active/);
 });

@@ -33,12 +33,12 @@ BASE_URL=https://<codespace>-8080.app.github.dev npx playwright test
 | UC-08 | Search | result items render |
 | UC-09 | Sort | option applied, results intact |
 | UC-10a/b | Export | .csv / .geojson downloads fire |
-| UC-11 | Pagination | Load More appends results |
+| UC-11 | Pagination | Load More appends page-2 results; hidden when single page |
 | UC-12 | Draw Area | draw-mode toast appears |
 | UC-13a–d | Keyboard | L cycles layers, D dark, S focus, Esc collapse |
-| UC-14a–c | Live View | country→city enabled, live marker, directional switch |
+| UC-14a–c | Live View | country→city enabled, live marker, directional buttons N/S/E/W |
 
 Notes:
 - Tests run **serially** (workers=1) because the app is a single shared instance.
 - STAC/catalog-dependent tests (UC-08 through UC-14b) carry long timeouts.
-- `UC-11` self-skips gracefully if a single page of results exhausts the catalog.
+- `UC-11` forces a >50-hit search (wide dates, cloud 100) so page 2 is guaranteed real.
