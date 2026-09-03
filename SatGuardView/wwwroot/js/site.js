@@ -153,7 +153,7 @@ function initMap() {
     }
 
     map.zoomControl.setPosition('bottomleft');
-    L.control.attribution({ position: 'bottomright', prefix: 'Leaflet' }).addTo(map);
+    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
     map.on('click', onMapClick);
     map.on('zoomend', updateLabelVisibility);
 
