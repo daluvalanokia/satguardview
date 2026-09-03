@@ -358,3 +358,42 @@ body.dark-mode .leaflet-popup-content strong { color: #f8fafc; }
 .leaflet-control-attribution a {
     font-size: 0 !important;
 }
+
+/* ===== Quick Locations ===== */
+.quick-locations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.quick-loc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-md, 6px);
+    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-secondary, #f1f5f9);
+    color: var(--text-primary, #1e293b);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.quick-loc-btn:hover {
+    background: var(--btn-primary, #2563eb);
+    color: #fff;
+    border-color: var(--btn-primary, #2563eb);
+}
+.quick-loc-btn svg {
+    flex-shrink: 0;
+}
+body.dark-mode .quick-loc-btn {
+    background: var(--bg-secondary-dark, #1e293b);
+    border-color: var(--border-dark, #334155);
+    color: var(--text-primary-dark, #e2e8f0);
+}
+body.dark-mode .quick-loc-btn:hover {
+    background: var(--btn-primary, #2563eb);
+    color: #fff;
+    border-color: var(--btn-primary, #2563eb);
+}

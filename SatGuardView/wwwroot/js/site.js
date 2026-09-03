@@ -850,6 +850,35 @@ async function searchExplorerCity() {
     }
 }
 
+// Quick location navigation — preset sacred sites
+function goToLocation(lat, lng, label, bbox) {
+    currentBbox = bbox;
+    drawRectangleOnMap(currentBbox);
+    map.flyTo([lat, lng], 8, { duration: 1.5 });
+    enableSearch();
+    showToast('Located: ' + label, 'success');
+    setAppStatus('idle');
+}
+
+// Quick location navigation — Live View
+function goToLiveLocation(lat, lng, label) {
+    map.flyTo([lat, lng], 8, { duration: 1.5 });
+    if (liveShieldMarker) { map.removeLayer(liveShieldMarker); liveShieldMarker = null; }
+    var icon = L.divIcon({
+        className: 'shield-marker',
+        html: '<svg viewBox="0 0 24 24" width="28" height="28" fill="#2563eb" stroke="#fff" stroke-width="1.5">'
+            + '<path d="M12 2L4 6v6c0 5.5 3.84 10.74 8 12 4.16-1.26 8-6.5 8-12V6l-8-4z"/>'
+            + '<path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2.5" fill="none"/></svg>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -28]
+    });
+    liveShieldMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+    liveShieldMarker.bindPopup('<b>' + label + '</b><br>MODIS Terra 250m daily imagery').openPopup();
+    showToast('Live view: ' + label, 'success');
+}
+
+
 function onCityInputChanged() {
     var input = document.getElementById('liveCityInput');
     var query = input.value.trim();

@@ -112,6 +112,25 @@
                 </div>
             </div>
 
+
+            <div class="sidebar-left__section">
+                <div class="sidebar-left__section-title">Quick Locations</div>
+                <div class="quick-locations">
+                    <button class="quick-loc-btn" onclick="goToLocation(25.3176, 82.9739, 'Varanasi, India', [82.47, 24.82, 83.47, 25.82])">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        Varanasi
+                    </button>
+                    <button class="quick-loc-btn" onclick="goToLocation(31.0682, 81.1766, 'Mount Kailash, Tibet', [80.68, 30.57, 81.68, 31.57])">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                            <path d="M3 20h18L14 4l-2 6-3-4-6 14z"/>
+                        </svg>
+                        Kailash
+                    </button>
+                </div>
+            </div>
+
             <div class="sidebar-left__section">
                 <div class="sidebar-left__section-title">Filters</div>
                 <div class="form-group">
@@ -225,6 +244,24 @@
                                 <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
                             </svg>
                             <span>S</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:14px">
+                    <label class="form-label">Quick Locations</label>
+                    <div class="quick-locations">
+                        <button class="quick-loc-btn" onclick="goToLiveLocation(25.3176, 82.9739, 'Varanasi, India')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            Varanasi
+                        </button>
+                        <button class="quick-loc-btn" onclick="goToLiveLocation(31.0682, 81.1766, 'Mount Kailash, Tibet')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <path d="M3 20h18L14 4l-2 6-3-4-6 14z"/>
+                            </svg>
+                            Kailash
                         </button>
                     </div>
                 </div>
