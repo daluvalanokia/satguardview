@@ -136,7 +136,7 @@ function initMap() {
         maxZoom: 18,
         zoomControl: true,
         worldCopyJump: true,
-        attributionControl: true
+        attributionControl: false
     });
 
     streetLayer = L.tileLayer(streetTilesUrl, { attribution: streetAttribution, maxZoom: 19, subdomains: 'abcd' });
