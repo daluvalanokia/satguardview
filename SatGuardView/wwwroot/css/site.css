@@ -157,7 +157,14 @@ body:not(.dark-mode) .dark-mode-toggle .moon-icon { display: block; }
 
 /* ===== Shield Marker ===== */
 .shield-marker { background: transparent !important; border: none !important; }
-.leaflet-popup-content { font-size: 13px; color: var(--text-primary); }
+.leaflet-popup-content { font-size: 13px; color: #111827; }
+.leaflet-popup-content-wrapper { background: #fff; color: #111827; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+.leaflet-popup-tip { background: #fff; }
+body.dark-mode .leaflet-popup-content { color: #f1f5f9; }
+body.dark-mode .leaflet-popup-content-wrapper { background: #1e293b; color: #f1f5f9; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+body.dark-mode .leaflet-popup-tip { background: #1e293b; }
+body.dark-mode .leaflet-popup-content strong { color: #f8fafc; }
+.leaflet-popup-content strong { color: #111827; }
 
 /* ===== Right Sidebar ===== */
 .sidebar-right { width: 380px; min-width: 380px; background: var(--bg-sidebar); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 1000; transition: transform .3s ease, background-color 0.3s; }

@@ -75,9 +75,9 @@ var streetTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World
 var satelliteTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 var darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 var topo3dTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
-var osmRoadTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+var osmRoadTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
 var esri3dAttribution = 'Tiles &copy; Esri, Source: Esri, USGS, NOAA';
-var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 var esriAttribution = 'Tiles &copy; Esri, Reference &copy; Esri';
 var gibsAttribution = 'Imagery &copy; NASA GIBS, Reference &copy; Esri';
 var cartoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
@@ -1023,9 +1023,9 @@ async function searchLiveCity() {
         setAppStatus('idle');
         liveShieldMarker = L.marker([lat, lng], { icon: shieldIcon }).addTo(map);
         liveShieldMarker.bindPopup(
-            '<div style="font-size:13px"><strong>' + (best.display_name || city) + '</strong><br>' +
+            '<div style="font-size:13px;color:#111827"><strong>' + (best.display_name || city) + '</strong><br>' +
             'Lat: ' + lat.toFixed(4) + ', Lng: ' + lng.toFixed(4) + '<br>' +
-            '<span style="color:#2563eb">Live ' + currentDirection.toUpperCase() + ' satellite imagery</span></div>'
+            '<span style="color:#2563eb;font-weight:600">Live ' + currentDirection.toUpperCase() + ' satellite imagery</span></div>'
         );
 
         map.setView([lat, lng], 8, { animate: true });
