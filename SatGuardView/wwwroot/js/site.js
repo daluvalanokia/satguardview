@@ -8,6 +8,8 @@ var currentLayer = 'street';
 var streetLayer = null;
 var satelliteLayer = null;
 var darkLayer = null;
+var topo3dLayer = null;
+var roadViewLayer = null;
 var gibsLayer = null;
 var currentRectangle = null;
 var searchMarkers = [];
@@ -72,6 +74,10 @@ var BORDER_FILL_OPACITY = 0.08;
 var streetTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
 var satelliteTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 var darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+var topo3dTilesUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+var osmRoadTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+var esri3dAttribution = 'Tiles &copy; Esri, Source: Esri, USGS, NOAA';
+var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 var esriAttribution = 'Tiles &copy; Esri, Reference &copy; Esri';
 var gibsAttribution = 'Imagery &copy; NASA GIBS, Reference &copy; Esri';
 var cartoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
@@ -135,6 +141,8 @@ function initMap() {
     streetLayer = L.tileLayer(streetTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
     satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: esriAttribution, maxZoom: 18 });
     darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 18, subdomains: 'abcd' });
+    topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: esri3dAttribution, maxZoom: 19 });
+    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: osmAttribution, maxZoom: 19, subdomains: 'abc' });
     gibsLayer = createGibsLayer(gibsCurrentLagDays);
 
     if (isDarkMode) {
@@ -320,15 +328,27 @@ function switchTab(tab) {
         if (isDarkMode) {
             if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
             if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+            if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
+            if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
             if (darkLayer && !map.hasLayer(darkLayer)) darkLayer.addTo(map);
         } else {
             if (darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
+            if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
+            if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
             if (currentLayer === 'street') {
                 if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
                 if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
-            } else {
+            } else if (currentLayer === 'satellite') {
                 if (satelliteLayer && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
                 if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+            } else if (currentLayer === '3d') {
+                if (topo3dLayer && !map.hasLayer(topo3dLayer)) topo3dLayer.addTo(map);
+                if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+                if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+            } else if (currentLayer === 'road') {
+                if (roadViewLayer && !map.hasLayer(roadViewLayer)) roadViewLayer.addTo(map);
+                if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+                if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
             }
         }
 
@@ -398,25 +418,43 @@ function switchLayer(layer) {
 
     var streetBtn = document.getElementById('layerStreet');
     var satelliteBtn = document.getElementById('layerSatellite');
+    var topo3dBtn = document.getElementById('layer3d');
+    var roadBtn = document.getElementById('layerRoad');
 
     if (isDarkMode) {
         if (streetBtn) streetBtn.classList.toggle('active', layer === 'street');
         if (satelliteBtn) satelliteBtn.classList.toggle('active', layer === 'satellite');
+        if (topo3dBtn) topo3dBtn.classList.toggle('active', layer === '3d');
+        if (roadBtn) roadBtn.classList.toggle('active', layer === 'road');
         return;
     }
 
+    // Remove all base layers
+    if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+    if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+    if (darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
+    if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
+    if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
+
+    // Deactivate all buttons
+    if (streetBtn) streetBtn.classList.remove('active');
+    if (satelliteBtn) satelliteBtn.classList.remove('active');
+    if (topo3dBtn) topo3dBtn.classList.remove('active');
+    if (roadBtn) roadBtn.classList.remove('active');
+
+    // Add the selected layer and activate its button
     if (layer === 'street') {
-        if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
-        if (darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
-        if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
+        if (streetLayer) streetLayer.addTo(map);
         if (streetBtn) streetBtn.classList.add('active');
-        if (satelliteBtn) satelliteBtn.classList.remove('active');
-    } else {
-        if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
-        if (darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
-        if (satelliteLayer && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
+    } else if (layer === 'satellite') {
+        if (satelliteLayer) satelliteLayer.addTo(map);
         if (satelliteBtn) satelliteBtn.classList.add('active');
-        if (streetBtn) streetBtn.classList.remove('active');
+    } else if (layer === '3d') {
+        if (topo3dLayer) topo3dLayer.addTo(map);
+        if (topo3dBtn) topo3dBtn.classList.add('active');
+    } else if (layer === 'road') {
+        if (roadViewLayer) roadViewLayer.addTo(map);
+        if (roadBtn) roadBtn.classList.add('active');
     }
 }
 
@@ -455,6 +493,8 @@ function setDarkMode(enable) {
         if (isDarkMode) {
             if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
             if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+            if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
+            if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
             if (!darkLayer) {
                 darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 18, subdomains: 'abcd' });
             }
@@ -463,8 +503,12 @@ function setDarkMode(enable) {
             if (darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
             if (currentLayer === 'street') {
                 if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
-            } else {
+            } else if (currentLayer === 'satellite') {
                 if (satelliteLayer && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
+            } else if (currentLayer === '3d') {
+                if (topo3dLayer && !map.hasLayer(topo3dLayer)) topo3dLayer.addTo(map);
+            } else if (currentLayer === 'road') {
+                if (roadViewLayer && !map.hasLayer(roadViewLayer)) roadViewLayer.addTo(map);
             }
         }
     }
@@ -1538,8 +1582,12 @@ document.addEventListener('keydown', function(e) {
         }
     } else if (key === 'l' || key === 'L') {
         e.preventDefault();
-        if (currentTab === 'explorer') {
-            switchLayer(currentLayer === 'street' ? 'satellite' : 'street');
+        if (currentTab === 'explorer' && !liveViewActive) {
+            var layers = ['street', 'satellite', '3d', 'road'];
+            var idx = layers.indexOf(currentLayer);
+            if (idx === -1) idx = 0;
+            idx = (idx + 1) % layers.length;
+            switchLayer(layers[idx]);
         }
     } else if (key === 'd' || key === 'D') {
         e.preventDefault();

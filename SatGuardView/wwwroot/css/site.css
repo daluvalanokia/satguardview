@@ -135,8 +135,8 @@ body:not(.dark-mode) .dark-mode-toggle .moon-icon { display: block; }
 #map { width: 100%; height: 100%; z-index: 1; }
 
 /* Layer Switcher & Draw Area */
-.layer-switcher { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 4px; background: var(--bg-sidebar); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px var(--shadow-color); transition: background-color 0.3s; }
-.layer-switcher__btn { padding: 6px 16px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: transparent; border: none; border-radius: 8px; cursor: pointer; transition: all .2s; }
+.layer-switcher { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 4px; background: var(--bg-sidebar); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px var(--shadow-color); transition: background-color 0.3s; max-width: 90vw; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.layer-switcher__btn { padding: 6px 12px; font-size: 12px; font-weight: 500; color: var(--text-secondary); background: transparent; border: none; border-radius: 8px; cursor: pointer; transition: all .2s; white-space: nowrap; }
 .layer-switcher__btn.active { color: #fff; background: var(--btn-primary); }
 .layer-switcher__btn:not(.active):hover { background: var(--bg-hover); color: var(--text-primary); }
 .layer-switcher.hidden { display: none; }
@@ -313,7 +313,9 @@ body:not(.dark-mode) .dark-mode-toggle .moon-icon { display: block; }
     .sidebar-left.hidden, .sidebar-right.hidden {
         display: none !important;
     }
-    .layer-switcher {
+    .layer-switcher { gap: 2px; }
+    .layer-switcher__btn { padding: 5px 8px; font-size: 11px; }
+    .layer-switcher-old {
         top: 10px;
         width: calc(100% - 32px);
         max-width: 400px;
