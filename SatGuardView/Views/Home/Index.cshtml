@@ -9,11 +9,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SatGuardView — Satellite Imagery Explorer</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="dark-mode">
     <header class="app-header">
         <div class="app-header__left">
+            <button class="app-header__hamburger" id="hamburgerMenu" onclick="toggleMobileMenu()" title="Toggle Menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
             <div class="app-header__logo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2L4 6v6c0 5.5 3.84 10.74 8 12 4.16-1.26 8-6.5 8-12V6l-8-4z"/>
@@ -25,16 +31,24 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                     <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                EO Imagery Explorer
+                <span>EO Imagery Explorer</span>
             </button>
             <button class="app-header__tab" id="tabLiveView" onclick="switchTab('liveview')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                 </svg>
-                Live View
+                <span>Live View</span>
             </button>
         </div>
         <div class="app-header__right">
+            <button class="dark-mode-toggle" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark/Light Mode">
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
             <div class="app-status" id="appStatus">
                 <span class="app-status__dot" id="appStatusDot"></span>
                 <span class="app-status__text" id="appStatusText">Ready</span>
@@ -48,7 +62,7 @@
         <aside class="sidebar-left" id="sidebarExplorer">
             <div class="sidebar-left__header">
                 <div class="sidebar-left__title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="color:#2563eb">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="color:var(--btn-primary)">
                         <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                     </svg>
                     <h2>EO Imagery Explorer</h2>
@@ -94,7 +108,7 @@
                         </button>
                         <div class="city-suggestions" id="explorerCitySuggestions"></div>
                     </div>
-                    <div class="form-hint" style="margin-top:4px;font-size:11px;color:var(--text-muted,#64748b)">Search a city to set the imagery search area</div>
+                    <div class="form-hint" style="margin-top:4px;font-size:11px;color:var(--text-secondary)">Search a city to set the imagery search area</div>
                 </div>
             </div>
 
@@ -146,11 +160,12 @@
         <aside class="sidebar-left sidebar-liveview hidden" id="sidebarLiveView">
             <div class="sidebar-left__header">
                 <div class="sidebar-left__title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="color:#2563eb">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="color:var(--btn-primary)">
                         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                     </svg>
                     <h2>Live Location Review</h2>
                 </div>
+                <button class="sidebar-left__close" onclick="toggleLeftSidebar()">&times;</button>
             </div>
             <div class="sidebar-left__subtitle">Daily MODIS Terra satellite imagery</div>
 
@@ -175,7 +190,7 @@
                             oninput="onCityInputChanged()"
                             onkeydown="onCityKeydown(event)"
                             autocomplete="off" />
-                        <button class="city-search-btn" id="liveCitySearchBtn" onclick="searchLiveCity()" disabled title="Search city">
+                        <button class="city-search-btn" id="liveCitySearchBtn" disabled onclick="searchLiveCity()" title="Search city">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                             </svg>
@@ -183,6 +198,37 @@
                         <div class="city-suggestions" id="citySuggestions"></div>
                     </div>
                 </div>
+
+                <div class="form-group" style="margin-top:14px">
+                    <label class="form-label">Directional View</label>
+                    <div class="directional-view-selector" id="directionalViewSelector">
+                        <button class="directional-btn active" data-dir="N" title="North" onclick="setDirectionalView('N')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                            </svg>
+                            <span>N</span>
+                        </button>
+                        <button class="directional-btn" data-dir="E" title="East" onclick="setDirectionalView('E')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                            <span>E</span>
+                        </button>
+                        <button class="directional-btn" data-dir="W" title="West" onclick="setDirectionalView('W')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                            </svg>
+                            <span>W</span>
+                        </button>
+                        <button class="directional-btn" data-dir="S" title="South" onclick="setDirectionalView('S')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+                            </svg>
+                            <span>S</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="live-view-helper">
                     Select a country and city to drop a shield marker on the live satellite view. The map zooms to the location for review.
                 </div>
@@ -204,7 +250,7 @@
             </div>
         </aside>
 
-        <button class="toggle-left" id="toggleLeft" onclick="toggleLeftSidebar()">
+        <button class="toggle-left" id="toggleLeft" onclick="toggleLeftSidebar()" style="display:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
 
@@ -212,6 +258,12 @@
             <div class="layer-switcher" id="layerSwitcher">
                 <button class="layer-switcher__btn active" id="layerStreet" onclick="switchLayer('street')">Street</button>
                 <button class="layer-switcher__btn" id="layerSatellite" onclick="switchLayer('satellite')">Live Satellite</button>
+                <button class="layer-switcher__btn draw-area-btn" id="drawAreaBtn" onclick="toggleDrawMode()" title="Draw Area of Interest">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="margin-right:4px;vertical-align:-2px">
+                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                    </svg>
+                    Draw Area
+                </button>
             </div>
 
             <div class="live-timestamp-badge hidden" id="liveTimestampBadge">
@@ -220,12 +272,46 @@
             </div>
 
             <div id="map"></div>
+
+            <div class="keyboard-shortcut-hint" id="shortcutHint">
+                <span class="key-badge">Shift</span> + Drag to zoom &bull; <span class="key-badge">D</span> Draw area
+            </div>
         </div>
 
         <aside class="sidebar-right" id="sidebarRight">
             <div class="sidebar-right__header">
-                <div class="sidebar-right__title">Search Results</div>
-                <button class="sidebar-right__close" onclick="toggleRightSidebar()">&times;</button>
+                <div class="sidebar-right__header-top">
+                    <div class="sidebar-right__title">Search Results</div>
+                    <button class="sidebar-right__close" onclick="toggleRightSidebar()">&times;</button>
+                </div>
+                <div class="sidebar-right__controls">
+                    <div class="sidebar-right__sort">
+                        <label class="form-label" for="sortSelect" style="margin-bottom:2px;font-size:11px">Sort by</label>
+                        <select class="form-select sort-select" id="sortSelect" onchange="sortResults(this.value)">
+                            <option value="date-desc">Newest First</option>
+                            <option value="date-asc">Oldest First</option>
+                            <option value="cloud-asc">Lowest Cloud</option>
+                            <option value="cloud-desc">Highest Cloud</option>
+                        </select>
+                    </div>
+                    <div class="sidebar-right__export">
+                        <label class="form-label" style="margin-bottom:2px;font-size:11px">Export</label>
+                        <div class="export-btn-group">
+                            <button class="export-btn" id="exportCsvBtn" onclick="exportResults('csv')" title="Export as CSV">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                CSV
+                            </button>
+                            <button class="export-btn" id="exportGeojsonBtn" onclick="exportResults('geojson')" title="Export as GeoJSON">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                GeoJSON
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="sidebar-right__body" id="resultsBody">
                 <div class="results-empty">
@@ -235,12 +321,21 @@
                     <div class="results-empty__text">Select a location and search to browse available imagery</div>
                 </div>
             </div>
+            <div class="sidebar-right__load-more" id="loadMoreContainer">
+                <button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreResults()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-right:6px">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                    Load More Results
+                </button>
+            </div>
             <div class="sidebar-right__footer" id="resultsFooter"></div>
         </aside>
     </div>
 
     <div class="toast" id="toast"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 </body>
 </html>

@@ -14,6 +14,12 @@ public class SearchResponse
     [JsonPropertyName("total")]
     public int Total { get; set; }
 
+    [JsonPropertyName("hasMore")]
+    public bool HasMore { get; set; }
+
+    [JsonPropertyName("nextPage")]
+    public int? NextPage { get; set; }
+
     [JsonPropertyName("error")]
     public string? Error { get; set; }
 }

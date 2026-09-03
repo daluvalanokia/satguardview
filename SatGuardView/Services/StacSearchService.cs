@@ -52,11 +52,16 @@ public class StacSearchService : IStacSearchService
             ? "sentinel-2-l2a"
             : request.SatelliteSource;
 
+        var page = request.Page ?? 1;
+        if (page < 1) page = 1;
+        var limit = request.Limit ?? _settings.DefaultLimit;
+
         var searchPayload = new StacSearchPayload
         {
             Collections = new List<string> { collection },
             Bbox = request.Bbox!,
-            Limit = request.Limit ?? _settings.DefaultLimit
+            Limit = limit,
+            Page = page
         };
 
         var dateRange = request.GetDateTimeRange();
@@ -65,20 +70,32 @@ public class StacSearchService : IStacSearchService
             searchPayload.Datetime = dateRange;
         }
 
+        // Add server-side cloud cover filter if provided
+        if (request.MaxCloudCover.HasValue)
+        {
+            searchPayload.Query = new Dictionary<string, StacQueryFilter>
+            {
+                ["eo:cloud_cover"] = new StacQueryFilter { Lte = request.MaxCloudCover.Value }
+            };
+        }
+
         // Add sorting if requested (used by Live View to get most recent imagery)
-        if (!string.IsNullOrEmpty(request.SortBy))
+        var sortBy = request.SortBy;
+        var sortOrder = !string.IsNullOrEmpty(request.SortOrder) ? request.SortOrder : "desc";
+
+        if (!string.IsNullOrEmpty(sortBy))
         {
             searchPayload.Sort = new List<StacSort>
             {
-                new() { Field = request.SortBy, Direction = "desc" }
+                new() { Field = sortBy, Direction = sortOrder }
             };
         }
 
         try
         {
             _logger.LogInformation(
-                "STAC search: collection={Collection}, bbox={Bbox}, datetime={Datetime}, sort={Sort}",
-                collection, string.Join(",", request.Bbox!), dateRange ?? "none", request.SortBy ?? "none");
+                "STAC search: collection={Collection}, bbox={Bbox}, datetime={Datetime}, cloudCover<={CloudCover}, page={Page}, limit={Limit}, sort={Sort} {Order}",
+                collection, string.Join(",", request.Bbox!), dateRange ?? "none", request.MaxCloudCover?.ToString() ?? "none", page, limit, sortBy ?? "none", sortOrder);
 
             var apiResponse = await _httpClient.PostAsJsonAsync("search", searchPayload, JsonOpts);
 
@@ -96,6 +113,8 @@ public class StacSearchService : IStacSearchService
             {
                 response.Items = new List<SatelliteImageryItem>();
                 response.Total = 0;
+                response.HasMore = false;
+                response.NextPage = null;
                 return response;
             }
 
@@ -104,8 +123,11 @@ public class StacSearchService : IStacSearchService
                 ? stacResponse.NumberMatched
                 : response.Items.Count;
 
-            _logger.LogInformation("Found {Count} imagery items (total matched: {Total})",
-                response.Items.Count, response.Total);
+            response.HasMore = response.Total > (page * limit);
+            response.NextPage = response.HasMore ? page + 1 : null;
+
+            _logger.LogInformation("Found {Count} imagery items (total matched: {Total}, page: {Page}, hasMore: {HasMore})",
+                response.Items.Count, response.Total, page, response.HasMore);
 
             return response;
         }
@@ -209,7 +231,14 @@ internal class StacSearchPayload
     [JsonPropertyName("bbox")] public double[] Bbox { get; set; } = Array.Empty<double>();
     [JsonPropertyName("datetime")] public string? Datetime { get; set; }
     [JsonPropertyName("limit")] public int Limit { get; set; } = 50;
+    [JsonPropertyName("page")] public int? Page { get; set; }
+    [JsonPropertyName("query")] public Dictionary<string, StacQueryFilter>? Query { get; set; }
     [JsonPropertyName("sort")] public List<StacSort>? Sort { get; set; }
+}
+
+internal class StacQueryFilter
+{
+    [JsonPropertyName("lte")] public double? Lte { get; set; }
 }
 
 internal class StacSort

@@ -22,12 +22,21 @@ public class SearchRequest
     [JsonPropertyName("limit")]
     public int? Limit { get; set; }
 
+    [JsonPropertyName("page")]
+    public int? Page { get; set; }
+
     /// <summary>
     /// Sort by field (e.g., "datetime" for sorting by date descending).
     /// Used by Live View to fetch the most recent imagery.
     /// </summary>
     [JsonPropertyName("sortBy")]
     public string? SortBy { get; set; }
+
+    /// <summary>
+    /// Sort order ("asc" or "desc", default "desc").
+    /// </summary>
+    [JsonPropertyName("sortOrder")]
+    public string? SortOrder { get; set; }
 
     public string? Validate()
     {
@@ -39,6 +48,10 @@ public class SearchRequest
             return "Latitude must be between -90 and 90";
         if (Bbox[0] >= Bbox[2]) return "minLon must be less than maxLon";
         if (Bbox[1] >= Bbox[3]) return "minLat must be less than maxLat";
+        if (Limit.HasValue && (Limit.Value < 1 || Limit.Value > 1000))
+            return "Limit must be between 1 and 1000";
+        if (Page.HasValue && Page.Value < 1)
+            return "Page must be at least 1";
         return null;
     }
 
