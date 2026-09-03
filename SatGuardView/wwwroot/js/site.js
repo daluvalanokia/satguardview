@@ -72,7 +72,7 @@ var BORDER_FILL_OPACITY = 0.08;
 
 // Tile URLs
 var streetTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Sentinel_2_L2A_TrueColor/default/' + getGibsDate(1) + '/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
+var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Sentinel_2_L2A_TrueColor/default/' + getGibsDate(1) + '/GoogleMapsCompatible_Level14/{z}/{y}/{x}.jpeg';
 var darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 var topo3dTilesUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
 var osmRoadTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -138,11 +138,11 @@ function initMap() {
         attributionControl: false
     });
 
-    streetLayer = L.tileLayer(streetTilesUrl, { attribution: streetAttribution, maxZoom: 19, subdomains: 'abcd' });
-    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: gibsAttribution, maxZoom: 9, tileSize: 256 });
-    darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 18, subdomains: 'abcd' });
-    topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: opentopoAttribution, maxZoom: 17, subdomains: 'abc' });
-    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: osmAttribution, maxZoom: 19, subdomains: 'abc' });
+    streetLayer = L.tileLayer(streetTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abcd' });
+    satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: '', maxZoom: 14, tileSize: 256 });
+    darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 18, subdomains: 'abcd' });
+    topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: '', maxZoom: 17, subdomains: 'abc' });
+    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abc' });
     gibsLayer = createGibsLayer(gibsCurrentLagDays);
 
     if (isDarkMode) {
@@ -152,7 +152,6 @@ function initMap() {
     }
 
     map.zoomControl.setPosition('bottomleft');
-    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
     map.on('click', onMapClick);
     map.on('zoomend', updateLabelVisibility);
 
@@ -226,7 +225,7 @@ function createGibsLayer(lagDays, layerName) {
     var url = getGibsUrl(lName);
     var layer = L.tileLayer(url, {
         gibsDate: getGibsDate(lagDays),
-        attribution: gibsAttribution,
+        attribution: '',
         maxZoom: 9,
         tileSize: 256,
         errorTileUrl: ''
@@ -496,7 +495,7 @@ function setDarkMode(enable) {
             if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
             if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
             if (!darkLayer) {
-                darkLayer = L.tileLayer(darkTilesUrl, { attribution: cartoAttribution, maxZoom: 19, subdomains: 'abcd' });
+                darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abcd' });
             }
             if (!map.hasLayer(darkLayer)) darkLayer.addTo(map);
         } else {
