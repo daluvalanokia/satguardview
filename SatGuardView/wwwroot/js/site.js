@@ -75,7 +75,7 @@ var streetTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/
 var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Sentinel_2_L2A_TrueColor/default/' + getGibsDate(1) + '/GoogleMapsCompatible_Level14/{z}/{y}/{x}.jpeg';
 var darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 var topo3dTilesUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-var osmRoadTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+var osmRoadTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
 var opentopoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>, SRTM';
 var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 var streetAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
@@ -142,7 +142,7 @@ function initMap() {
     satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: '', maxZoom: 14, tileSize: 256 });
     darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 18, subdomains: 'abcd' });
     topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: '', maxZoom: 17, subdomains: 'abc' });
-    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abc' });
+    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abcd' });
     gibsLayer = createGibsLayer(gibsCurrentLagDays);
 
     if (isDarkMode) {
