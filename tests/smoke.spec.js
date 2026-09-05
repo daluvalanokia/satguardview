@@ -80,11 +80,11 @@ test('UC-02b Explorer tab returns to explorer sidebar', async ({ page }) => {
 
 /* ===== 03 Layer switcher ============================================= */
 
-test('UC-03a Street layer shows OSM tiles', async ({ page }) => {
+test('UC-03a Street layer shows English-label Wikimedia tiles', async ({ page }) => {
   await gotoApp(page, { dark: false });
   await page.click('#layerStreet');
   await expect(page.locator('#layerStreet')).toHaveClass(/active/);
-  await expect(page.locator('img.leaflet-tile[src*="openstreetmap.org"]').first())
+  await expect(page.locator('img.leaflet-tile[src*="maps.wikimedia.org"]').first())
     .toBeVisible({ timeout: 20000 });
 });
 
@@ -104,12 +104,36 @@ test('UC-03c 3D Terrain layer shows OpenTopoMap tiles', async ({ page }) => {
     .toBeVisible({ timeout: 20000 });
 });
 
-test('UC-03d Road View layer shows Wikimedia tiles', async ({ page }) => {
+test('UC-03d Road View layer shows OSM tiles', async ({ page }) => {
   await gotoApp(page, { dark: false });
   await page.click('#layerRoad');
   await expect(page.locator('#layerRoad')).toHaveClass(/active/);
-  await expect(page.locator('img.leaflet-tile[src*="maps.wikimedia.org"]').first())
+  await expect(page.locator('img.leaflet-tile[src*="tile.openstreetmap.org"]').first())
     .toBeVisible({ timeout: 20000 });
+});
+
+test('UC-03e Layers stay distinct in DARK mode (no more identical maps)', async ({ page }) => {
+  await gotoApp(page, { dark: true }); // dark is the default; satellite/3d/road must still be distinct
+  // street in dark = dark tiles
+  await expect(page.locator('.dark-tiles img.leaflet-tile').first()).toBeVisible({ timeout: 20000 });
+  // satellite in dark = real GIBS imagery, NOT dark tiles
+  await page.click('#layerSatellite');
+  await expect(page.locator('img.leaflet-tile[src*="gibs.earthdata.nasa.gov"]').first())
+    .toBeVisible({ timeout: 20000 });
+  await expect(page.locator('.dark-tiles')).toHaveCount(0);
+  // 3D terrain in dark = real OpenTopoMap
+  await page.click('#layer3d');
+  await expect(page.locator('img.leaflet-tile[src*="opentopomap.org"]').first())
+    .toBeVisible({ timeout: 20000 });
+  await expect(page.locator('.dark-tiles')).toHaveCount(0);
+  // road in dark = real OSM
+  await page.click('#layerRoad');
+  await expect(page.locator('img.leaflet-tile[src*="tile.openstreetmap.org"]').first())
+    .toBeVisible({ timeout: 20000 });
+  await expect(page.locator('.dark-tiles')).toHaveCount(0);
+  // back to street restores the dark street tiles
+  await page.click('#layerStreet');
+  await expect(page.locator('.dark-tiles img.leaflet-tile').first()).toBeVisible({ timeout: 20000 });
 });
 
 /* ===== 04 Provider / watermark guard ================================= */
@@ -135,6 +159,25 @@ test('UC-04 No CARTO requests; every map tile returns 200', async ({ page }) => 
   expect(tileResponses.length).toBeGreaterThan(0);
   const bad = tileResponses.filter((t) => t.status !== 200);
   expect(bad, `non-200 tiles: ${JSON.stringify(bad)}`).toHaveLength(0);
+});
+
+test('UC-04b Attribution: visible, minimized (10px/60%), updates per layer', async ({ page }) => {
+  await gotoApp(page, { dark: false });
+  const attr = page.locator('#mapAttribution');
+  await expect(attr).toBeVisible();
+  await expect(attr).toContainText(/OpenStreetMap contributors/i);
+  const style = await attr.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { fontSize: cs.fontSize, opacity: cs.opacity };
+  });
+  expect(style.fontSize).toBe('10px');
+  expect(parseFloat(style.opacity)).toBeCloseTo(0.6, 1);
+  await page.click('#layerSatellite');
+  await expect(attr).toContainText(/NASA/i);
+  await page.click('#layer3d');
+  await expect(attr).toContainText(/OpenTopoMap/i);
+  await page.click('#layerRoad');
+  await expect(attr).toContainText(/OpenStreetMap contributors/i);
 });
 
 /* ===== 05 Dark mode ================================================== */

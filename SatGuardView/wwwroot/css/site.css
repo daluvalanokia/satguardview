@@ -420,3 +420,34 @@ body.dark-mode .quick-loc-btn:hover {
     color: #fff;
     border-color: var(--btn-primary, #2563eb);
 }
+
+/* ===== Minimized, legally compliant attribution (10px / 60% opacity / auto-collapsing) ===== */
+.map-attribution {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    z-index: 900;
+    font-size: 10px;
+    line-height: 1.3;
+    opacity: 0.6;
+    background: rgba(255, 255, 255, 0.75);
+    color: #333;
+    padding: 2px 7px;
+    border-radius: 4px;
+    max-width: 42vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.2s;
+    pointer-events: auto;
+}
+.map-attribution:hover {
+    opacity: 1;
+    white-space: normal;
+    max-width: 60vw;
+}
+.map-attribution a { color: inherit; }
+.dark-mode .map-attribution {
+    background: rgba(17, 24, 39, 0.8);
+    color: #d1d5db;
+}

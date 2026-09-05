@@ -74,11 +74,13 @@ var BORDER_FILL_OPACITY = 0.08;
 // NOTE: CARTO basemaps removed — CARTO now stamps 'API KEY REQUIRED' into tiles
 // served without a paid key (verified 2026-09-03). All providers below are
 // key-free and visually verified watermark-free.
-var streetTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+// English-only label policy: Wikimedia osm-intl renders international (English) labels.
+// Street view uses it as the primary reading map; Road view keeps raw OSM reference tiles.
+var streetTilesUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
 var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/' + getGibsDate(1) + '/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
-var darkTilesUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'; // dark look via CSS invert (.dark-tiles)
+var darkTilesUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png'; // dark look via CSS invert (.dark-tiles), English labels
 var topo3dTilesUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-var osmRoadTilesUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
+var osmRoadTilesUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 var opentopoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>, SRTM';
 var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 var streetAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -141,9 +143,9 @@ function initMap() {
         attributionControl: false
     });
 
-    streetLayer = L.tileLayer(streetTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abc' });
+    streetLayer = L.tileLayer(streetTilesUrl, { attribution: '', maxZoom: 19 });
     satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: '', maxZoom: 9, tileSize: 256 });
-    darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abc', className: 'dark-tiles' });
+    darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, className: 'dark-tiles' });
     topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: '', maxZoom: 17, subdomains: 'abc' });
     roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: '', maxZoom: 19 });
     gibsLayer = createGibsLayer(gibsCurrentLagDays);
@@ -160,6 +162,7 @@ function initMap() {
 
     loadCountryBorders();
     updateLiveTimestamp();
+    updateAttributionText(currentLayer);
 }
 
 // ===== Fetch Directional Views Config =====
@@ -404,6 +407,7 @@ function updateLiveTimestamp() {
 }
 
 function refreshLiveView() {
+    updateAttributionText('live');
     if (!liveViewActive) return;
     gibsCurrentLagDays = GIBS_DEFAULT_LAG_DAYS;
     if (map && map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
@@ -423,14 +427,6 @@ function switchLayer(layer) {
     var topo3dBtn = document.getElementById('layer3d');
     var roadBtn = document.getElementById('layerRoad');
 
-    if (isDarkMode) {
-        if (streetBtn) streetBtn.classList.toggle('active', layer === 'street');
-        if (satelliteBtn) satelliteBtn.classList.toggle('active', layer === 'satellite');
-        if (topo3dBtn) topo3dBtn.classList.toggle('active', layer === '3d');
-        if (roadBtn) roadBtn.classList.toggle('active', layer === 'road');
-        return;
-    }
-
     // Remove all base layers
     if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
     if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
@@ -445,8 +441,15 @@ function switchLayer(layer) {
     if (roadBtn) roadBtn.classList.remove('active');
 
     // Add the selected layer and activate its button
+    // Only the street view is restyled by dark mode; satellite / 3D terrain / road
+    // always show their real, distinct tiles so no two views look the same.
     if (layer === 'street') {
-        if (streetLayer) streetLayer.addTo(map);
+        if (isDarkMode) {
+            if (!darkLayer) darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, className: 'dark-tiles' });
+            if (!map.hasLayer(darkLayer)) darkLayer.addTo(map);
+        } else if (streetLayer) {
+            streetLayer.addTo(map);
+        }
         if (streetBtn) streetBtn.classList.add('active');
     } else if (layer === 'satellite') {
         if (satelliteLayer) satelliteLayer.addTo(map);
@@ -458,6 +461,26 @@ function switchLayer(layer) {
         if (roadViewLayer) roadViewLayer.addTo(map);
         if (roadBtn) roadBtn.classList.add('active');
     }
+
+    updateAttributionText(layer);
+}
+
+// ===== Minimized, legally compliant attribution (10px / 60% opacity / auto-collapsing) =====
+var ATTRIBUTION_TEXTS = {
+    street: 'Map data \u00a9 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors \u00b7 Tiles \u00a9 <a href="https://maps.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Maps</a>',
+    streetDark: 'Map data \u00a9 OpenStreetMap contributors \u00b7 Dark tiles \u00a9 Wikimedia Maps',
+    satellite: 'Imagery \u00a9 <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener">NASA EOSDIS GIBS</a> (public domain)',
+    '3d': 'Map data \u00a9 OpenStreetMap contributors \u00b7 Tiles \u00a9 <a href="https://opentopomap.org/" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)',
+    road: 'Map data \u00a9 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    live: 'Live imagery \u00a9 NASA EOSDIS GIBS (public domain)'
+};
+
+function updateAttributionText(layerOrMode) {
+    var el = document.getElementById('mapAttribution');
+    if (!el) return;
+    var key = layerOrMode;
+    if (key === 'street' && isDarkMode) key = 'streetDark';
+    el.innerHTML = ATTRIBUTION_TEXTS[key] || ATTRIBUTION_TEXTS.street;
 }
 
 // ===== Dark Mode Toggle =====
@@ -491,29 +514,19 @@ function setDarkMode(enable) {
         else toggleBtn.classList.remove('active');
     }
 
-    if (currentTab === 'explorer' && !liveViewActive && map) {
+    // Dark mode only restyles the street view. Satellite / 3D terrain / road views
+    // keep their real tiles in both modes so every view stays visually distinct.
+    if (currentTab === 'explorer' && !liveViewActive && map && currentLayer === 'street') {
         if (isDarkMode) {
             if (streetLayer && map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
-            if (satelliteLayer && map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
-            if (topo3dLayer && map.hasLayer(topo3dLayer)) map.removeLayer(topo3dLayer);
-            if (roadViewLayer && map.hasLayer(roadViewLayer)) map.removeLayer(roadViewLayer);
-            if (!darkLayer) {
-                darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, subdomains: 'abc', className: 'dark-tiles' });
-            }
+            if (!darkLayer) darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, className: 'dark-tiles' });
             if (!map.hasLayer(darkLayer)) darkLayer.addTo(map);
         } else {
             if (darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
-            if (currentLayer === 'street') {
-                if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
-            } else if (currentLayer === 'satellite') {
-                if (satelliteLayer && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
-            } else if (currentLayer === '3d') {
-                if (topo3dLayer && !map.hasLayer(topo3dLayer)) topo3dLayer.addTo(map);
-            } else if (currentLayer === 'road') {
-                if (roadViewLayer && !map.hasLayer(roadViewLayer)) roadViewLayer.addTo(map);
-            }
+            if (streetLayer && !map.hasLayer(streetLayer)) streetLayer.addTo(map);
         }
     }
+    updateAttributionText(currentLayer);
 }
 
 // ===== Map Click =====
