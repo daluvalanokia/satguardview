@@ -104,11 +104,11 @@ test('UC-03c 3D Terrain layer shows OpenTopoMap tiles', async ({ page }) => {
     .toBeVisible({ timeout: 20000 });
 });
 
-test('UC-03d Road View layer shows OSM tiles', async ({ page }) => {
+test('UC-03d Road View shows English-label tiles with distinct road styling', async ({ page }) => {
   await gotoApp(page, { dark: false });
   await page.click('#layerRoad');
   await expect(page.locator('#layerRoad')).toHaveClass(/active/);
-  await expect(page.locator('img.leaflet-tile[src*="tile.openstreetmap.org"]').first())
+  await expect(page.locator('.road-view-tiles img.leaflet-tile[src*="maps.wikimedia.org"]').first())
     .toBeVisible({ timeout: 20000 });
 });
 
@@ -126,9 +126,9 @@ test('UC-03e Layers stay distinct in DARK mode (no more identical maps)', async 
   await expect(page.locator('img.leaflet-tile[src*="opentopomap.org"]').first())
     .toBeVisible({ timeout: 20000 });
   await expect(page.locator('.dark-tiles')).toHaveCount(0);
-  // road in dark = real OSM
+  // road in dark = real English-label road tiles (not dark street tiles)
   await page.click('#layerRoad');
-  await expect(page.locator('img.leaflet-tile[src*="tile.openstreetmap.org"]').first())
+  await expect(page.locator('.road-view-tiles img.leaflet-tile[src*="maps.wikimedia.org"]').first())
     .toBeVisible({ timeout: 20000 });
   await expect(page.locator('.dark-tiles')).toHaveCount(0);
   // back to street restores the dark street tiles
@@ -178,6 +178,7 @@ test('UC-04b Attribution: visible, minimized (10px/60%), updates per layer', asy
   await expect(attr).toContainText(/OpenTopoMap/i);
   await page.click('#layerRoad');
   await expect(attr).toContainText(/OpenStreetMap contributors/i);
+  await expect(attr).toContainText(/Wikimedia/i);
 });
 
 /* ===== 05 Dark mode ================================================== */

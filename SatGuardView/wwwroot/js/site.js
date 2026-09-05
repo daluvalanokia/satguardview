@@ -80,7 +80,10 @@ var streetTilesUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
 var satelliteTilesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/' + getGibsDate(1) + '/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg';
 var darkTilesUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png'; // dark look via CSS invert (.dark-tiles), English labels
 var topo3dTilesUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-var osmRoadTilesUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// Labels-ONLY-in-English policy: Wikimedia osm-intl is the sole free/keyless provider
+// rendering guaranteed English (international) labels, so every labeled view uses it.
+// Road keeps a distinct look via the .road-view-tiles CSS treatment.
+var osmRoadTilesUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
 var opentopoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>, SRTM';
 var osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 var streetAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -147,7 +150,7 @@ function initMap() {
     satelliteLayer = L.tileLayer(satelliteTilesUrl, { attribution: '', maxZoom: 9, tileSize: 256 });
     darkLayer = L.tileLayer(darkTilesUrl, { attribution: '', maxZoom: 19, className: 'dark-tiles' });
     topo3dLayer = L.tileLayer(topo3dTilesUrl, { attribution: '', maxZoom: 17, subdomains: 'abc' });
-    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: '', maxZoom: 19 });
+    roadViewLayer = L.tileLayer(osmRoadTilesUrl, { attribution: '', maxZoom: 19, className: 'road-view-tiles' });
     gibsLayer = createGibsLayer(gibsCurrentLagDays);
 
     if (isDarkMode) {
@@ -471,7 +474,7 @@ var ATTRIBUTION_TEXTS = {
     streetDark: 'Map data \u00a9 OpenStreetMap contributors \u00b7 Dark tiles \u00a9 Wikimedia Maps',
     satellite: 'Imagery \u00a9 <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener">NASA EOSDIS GIBS</a> (public domain)',
     '3d': 'Map data \u00a9 OpenStreetMap contributors \u00b7 Tiles \u00a9 <a href="https://opentopomap.org/" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)',
-    road: 'Map data \u00a9 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    road: 'Map data \u00a9 <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors \u00b7 Tiles \u00a9 <a href="https://maps.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Maps</a>',
     live: 'Live imagery \u00a9 NASA EOSDIS GIBS (public domain)'
 };
 

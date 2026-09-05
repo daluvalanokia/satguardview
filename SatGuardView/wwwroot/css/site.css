@@ -451,3 +451,8 @@ body.dark-mode .quick-loc-btn:hover {
     background: rgba(17, 24, 39, 0.8);
     color: #d1d5db;
 }
+
+/* ===== Road View: distinct "road atlas" treatment over English-label tiles ===== */
+.road-view-tiles {
+    filter: saturate(1.35) contrast(1.06) sepia(0.18);
+}
