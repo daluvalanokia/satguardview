@@ -56,9 +56,12 @@ test('UC-01 App shell loads with all menu chrome', async ({ page }) => {
   await expect(page.locator('#map.leaflet-container')).toBeVisible();
   await expect(page.locator('#appStatusText')).toHaveText(/Ready/i);
   for (const id of ['#tabExplorer', '#tabLiveView', '#layerStreet', '#layerSatellite',
-    '#layer3d', '#layerRoad', '#darkModeToggle', '#hamburgerMenu', '#drawAreaBtn']) {
+    '#layer3d', '#layerRoad', '#darkModeToggle', '#drawAreaBtn']) {
     await expect(page.locator(id)).toBeVisible();
   }
+  // Hamburger is present in the DOM but hidden by design on desktop (CSS media query);
+  // its mobile behaviour is covered by UC-06.
+  await expect(page.locator('#hamburgerMenu')).toBeAttached();
 });
 
 /* ===== 02 Tabs ======================================================= */
@@ -382,11 +385,13 @@ test('UC-14b Live View: city search shows live marker on map', async ({ page }) 
 test('UC-14c Live View: directional view buttons present and switchable', async ({ page }) => {
   await gotoApp(page);
   await page.click('#tabLiveView');
-  for (const id of ['#dirBtnNorth', '#dirBtnSouth', '#dirBtnEast', '#dirBtnWest']) {
-    await expect(page.locator(id)).toBeVisible();
+  for (const dir of ['N', 'E', 'S', 'W']) {
+    await expect(page.locator(`#directionalViewSelector button[data-dir="${dir}"]`)).toBeVisible();
   }
-  await expect(page.locator('#dirBtnNorth')).toHaveClass(/active/);
-  await page.click('#dirBtnSouth');
-  await expect(page.locator('#dirBtnSouth')).toHaveClass(/active/);
-  await expect(page.locator('#dirBtnNorth')).not.toHaveClass(/active/);
+  const north = page.locator('#directionalViewSelector button[data-dir="N"]');
+  const south = page.locator('#directionalViewSelector button[data-dir="S"]');
+  await expect(north).toHaveClass(/active/);
+  await south.click();
+  await expect(south).toHaveClass(/active/);
+  await expect(north).not.toHaveClass(/active/);
 });
